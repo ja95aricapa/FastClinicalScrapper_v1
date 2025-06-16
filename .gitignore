@@ -5,6 +5,13 @@
 /utils/
 /*.pyc
 
+# html
+/examples/*.html
+/examples/*.json
+
 # local
 /.env
 .env
+*.jpg
+*.png
+*.jpeg
