@@ -1,0 +1,627 @@
+[
+    {
+        "CEDULA": "1107088958",
+        "NOMBRE_PACIENTE": "LILIAN VANESSA SINISTERRA CASIERRA",
+        "historia_clinica": {
+            "medico": [
+                {
+                    "actividad_encuentro": "ATENCION INTEGRAL A PACIENTES VIVIENDO CON VIH/SIDA",
+                    "sub_actividad_encuentro": "CONSULTA DE CONTROL POR MEDICO",
+                    "profesional_encuentro": "Jonathan Carvajal Restrepo",
+                    "fecha_hora_encuentro": "2025-06-07 08:40:00",
+                    "datos_del_modal": {
+                        "Acompañante y Responsable": {
+                            "Nombre del acompañante": "ACUDE SOLO",
+                            "Teléfono del acompañante": "N",
+                            "Parentesco del Acompañante": "No tiene",
+                            "Nombre del Responsable": "N",
+                            "Teléfono del Responsable": "0",
+                            "Parentesco del Responsable": "No tiene"
+                        },
+                        "Motivo de Consulta": {
+                            "Motivo de Consulta": "*POR EL CONTROL*"
+                        },
+                        "Enfermedad Actual": {
+                            "Enfermedad Actual": "Pcte de 29 años con Dx VIH desde el año 2022 quien inicia manejo en recuperar ips, estadio A1 inicio tratamiento con Dovato el cual ha sido su unico esquema, refiere buena adherencia y tolerancia al mismo. Ahora ingresa direccionada a Fundacion Siam para continuar tratramiento y seguimiento de patologia de alto costo dado finalizacion de contrato de su eps con Recuperar. Actualmente comenta sentirse en buenas condiciones generales de salud, comenta ultimo ingreso por urgencias en el 2024 por cuadro de amigdalitis y al parecer por reaccion alergia posterior a cambio de medicamento por desabastecimiento de Dovato ( no hay registro de esta informacion en HC). Niega sintomas infeccioso activos. Ultimos labs registrados en Hc aportada son de 29/10/2024: CARGA VIRAL VIH PENDIENTE REPORTE, ANTICUERPOS HEPATITIS C NO REACTIVO, UROANALISIS NO INFLAMATORIO, TGP: 8, TGO: 16, GLUCOSA: 84 MG/DL, HDL: 53 MG/DL, LDL: 36 MG/DL, COLESTEROL TOTAL: 99 MG/DL, TRIGLICÉRIDOS: 49 MG/DL, SEROLOGIA RPR NO REACTIVO, CREATININA: 0.98 MG/DL, PPD 0 MM, LINFOCITOS: 1520, HEMOGLOBINA: 9.2 G/DL, PLAQUETAS: 403.000. •ESQUEMA DE VACUNACIÓN: 1.HEPATITIS B: ANTI HBS (14/12/2023) ANTI HBS >1000. 14/12/2022 ---- 17.01.23 (2DA DOSIS) – 3RA DOSIS 15/06/2023 2.HEPATITIS A: 28/11/2023 HEPATITIS A ANTICUERPOS REACTIVOS (<0.10). NO REQUIERE VACUNACIÓN. 3.HEPATITIS C: 28/11/2023 ANTICUERPOS VHC NO REACTIVO 4.COVID-19: NO TIENE (NO LO DESEA) – REFIERE QUE NO HA ENFERMADO POR SARS COV-2.- 5.INFLUENZA: 15/06/2023-11/06/2024 6.NEUMOCOCO 13: 15/12/2022 7.NEUMOCOCO 23: 16/02/2023 SE REPORTA ULTIMO PERFIL INMUNOVIROLOGICO DEL 2 DE ABRIL 202 CON CV VIH INDETECABLE Y CD4 DE 662 CELS. UROANALISIS NO PATOLOGICO CUADRO HEMATICO SIN ANEMIA NI TROMBOCITOPENIA PERFIL LIPIDICO CON DISLIPIDEMIA MIXTA, SE DAN RECOMENDACIONES DE ESTILO D EVIDA SALUDABLES. FUNCION RENAL Y HEPATICA CONSERVADAS. SEROLOGIA NO REACTIVA."
+                        },
+                        "Revisión por Sistemas": {
+                            "Piel y anexos": "niega",
+                            "Ojos": "niega",
+                            "ORL": "niega",
+                            "Cuello": "niega",
+                            "Cardiovascular": "niega",
+                            "Pulmonar": "niega",
+                            "Digestivo": "niega",
+                            "Genital/Urinario": "niega",
+                            "Músc. Esquel.": "niega",
+                            "Neurológico": "niega",
+                            "Otros": "niega"
+                        },
+                        "Detección de sintomáticos de Piel": {
+                            "Máculas, Pápulas o Nódulos": "No",
+                            "Alteraciones en la sensibilidad térmica y táctil": "No"
+                        },
+                        "Detección de Sintomáticos Respiratorios": {
+                            "Tos": "No",
+                            "Fiebre": "No",
+                            "Sudoración Nocturna": "No",
+                            "Pérdida de peso": "No"
+                        },
+                        "Salud Sexual y Reproductiva": {
+                            "Número de Contactos sexuales a lo largo de la vida": "No Refiere",
+                            "¿Tiene Relaciones Sexuales con?": "Hombres cis",
+                            "¿Pareja estable?": "No",
+                            "¿Pareja con Diagnostico VIH?": "No Aplica",
+                            "Método de planificación Familiar": "Otros métodos, Preservativos",
+                            "Vía de relaciones sexuales": "Vaginales",
+                            "Edad de la Sexarca": "22",
+                            "Orientación Sexual": "Heterosexualidad"
+                        },
+                        "Antecedentes Médicos": {
+                            "Patológicos": "VIH(2022)",
+                            "Farmacológicos": "Dovato",
+                            "Alérgicos": "no recuerda nombre al parecer fue un ARV",
+                            "Quirúrgicos": "niega",
+                            "Traumatológicos": "niega",
+                            "Familiares": "hipotiroidismo, hta",
+                            "Transfusionales": "niega",
+                            "Toxicológicos": "niega"
+                        },
+                        "Antecedentes Ginecoobstétricos": {
+                            "Edad de la Menarca": "14",
+                            "Gravidez": "0",
+                            "Mortinatos": "No especificado",
+                            "¿Tiene citología vaginal?": "No especificado",
+                            "Cáncer de Cérvix": "No especificado",
+                            "¿Cursa con Menopausia?": "No"
+                        },
+                        "Signos Vitales Adolescentes y Adultos": {
+                            "Peso": "53 Kg (20 Kg - 200 Kg)",
+                            "Talla": "170 cm (100 cm - 300 cm)",
+                            "IMC": "18.339100346021 (18.5 - 24.9 )",
+                            "Perímetro Abdominal": "68 ( - )",
+                            "Presión Sistólica": "100 mmHg (100 mmHg - 130 mmHg)",
+                            "Presión Diastólica": "60 mmHg (60 mmHg - 90 mmHg)",
+                            "Frecuencia Cardiaca": "76 bpm (60 bpm - 80 bpm)",
+                            "Frecuencia Respiratoria": "16 rpm (15 rpm - 20 rpm)",
+                            "Temperatura": "36 °C (35 °C - 37 °C)"
+                        },
+                        "Exámen Físico": {
+                            "Condiciones Generales": "Ingresa por sus propios medios, buen aspecto general",
+                            "Cara y Cuello": "Normocefala, escleras anictericas. Mucosas rosadas e hidratadas. Cuello movil sin masas ni adenopatias.",
+                            "Cardiopulmonar": "RsCsRsRs sincronicos sin soplos. Campos pulmonares normoventilados sin sobreagregados.",
+                            "Extremidades": "Siemtricas, moviles, no edemas.",
+                            "Abdomen": "Blando, no doloroso a la palpacion, no masas ni megalias, no signos de irritacion peritoneal. PPL bilateral neg,",
+                            "Genitales Externos": "No valoro",
+                            "Neurológicos": "Consciente, alerta sin signos de focalizacion neurologica.",
+                            "Piel": "Integra sin lesiones."
+                        },
+                        "Resumen e Intervenciones": {
+                            "Acciones": "Paciente de 29 años, ingresa sola. Paciente actualmente refiere sentirse “bien”, refiere que fue diagnosticado en el año 2022. Paciente refiere que se enteró de su diagnóstico, debido a pruebas de rutina, por lo cual envían prueba para diagnosticar vih/sida, la cual arrojo un resultado positivo para vih/sida. Paciente inició tratamiento posterior a su diagnóstico, actualmente consume lamivudina/dolutegravir, el día de hoy, cambian esquema, refiere 2 cambios de esquema hasta el momento, en proceso para iniciar tratamiento en nuestro programa en nuestro programa, se orienta frente a la importancia de tomar sus medicamentos en horarios fijos, evitar presentar olvidos ocasionales y suspensiones voluntarias. Paciente sin antecedente psiquiátrico, niega antecedentes de ideación suicida. Paciente refiere no tener pareja sexual, no es activa sexualmente, expresa conocer la importancia de hace uso del preservativo regularmente. Diagnóstico del paciente lo conoce su ex pareja. Ocupación: artista independiente. Núcleo familiar: vive con su hermano, cuñada, sobrina y madre. Paciente reside en Cali. Orientación sexual: Heterosexual. Género: Femenino. Prácticas sexuales: MSH. Paciente inicia vida sexual: 22 años. Número de parejas sexuales: 3. Método de planificación: Métodos hormonales. Paciente orientado en tiempo, persona y espacio, alerta, discurso coherente y fluido, refiere no tener dificultades para recordar situaciones específicas a corto plazo y largo plazo, paciente comprende parcialmente conceptos como vih/ sida, carga viral, cd4 y funcionamiento de los antirretrovirales. Se explica al paciente la importancia de empoderarse de su esquema, reconociendo medicamentos y nombrándolos, se indican las conductas de adherencia y la necesidad de seguirlas para una favorable evolución clínica, se sensibiliza para incluir hábitos saludables de vida, conductas de autocuidado. Se sensibiliza acerca del uso del preservativo, se explican riesgos en caso de no asumir conductas preventivas (ITS, ETS, reinfección y transmisión). Niega consumo de bebidas alcohólicas, no consumo de cigarrillo , no consumo de sustancias psicoactivas, realiza actividad física (rutinas en casa). Seguimiento en 6 meses por control en adherencia. SE REPORTA ULTIMO PERFIL INMUNOVIROLOGICO DEL 2 DE ABRIL 202 CON CV VIH INDETECABLE Y CD4 DE 662 CELS. UROANALISIS NO PATOLOGICO CUADRO HEMATICO SIN ANEMIA NI TROMBOCITOPENIA PERFIL LIPIDICO CON DISLIPIDEMIA MIXTA, SE DAN RECOMENDACIONES DE ESTILO D EVIDA SALUDABLES. FUNCION RENAL Y HEPATICA CONSERVADAS. SEROLOGIA NO REACTIVA."
+                        },
+                        "Marcación de pacientes con VIH": {
+                            "Condición de VIH": "Paciente con diagnóstico de VIH, en TAR con cambio de esquema",
+                            "Condición de Gestación": "Mujer no embarazada",
+                            "Condición de Tuberculosis": "Sin Tuberculsis Activa"
+                        },
+                        "Antecedentes del Diagnóstico de VIH": {
+                            "Fecha de la prueba presuntiva": "2022-08-31 00:00:00",
+                            "Cómo llegó a la prueba presuntiva para el VIH": "Solicitada por el médico en estudio de un cuadro clínico sospechoso de VIH/Sida",
+                            "Fecha de confirmación del diagnóstico": "2022-09-09 00:00:00",
+                            "Fecha de inicio de la atención por VIH": "No especificado",
+                            "Mecanismo o vía de transmisión del VIH": "Transmisión sexual"
+                        },
+                        "Inicio de la Terapia Antiretroviral": {
+                            "Fecha de inicio de la terapia antirretroviral": "2023-11-17 00:00:00",
+                            "Motivo de inicio de la TAR": "Por infección temprana",
+                            "Medicamento 1 con el que inició la TAR": "3TC/DTG",
+                            "Medicamento 2 con el que inició la TAR": "No especificado",
+                            "Medicamento 3 con el que inició la TAR": "No especificado",
+                            "Medicamento 4 con el que inició la TAR": "No especificado",
+                            "Medicamento 5 con el que inició la TAR": "No especificado",
+                            "¿Conteo de linfocitos T CD4 al momento del inicio de la TAR?": "Si se realizó",
+                            "Valor conteo de linfocitos T CD4 al momento del inicio de la TAR": "587",
+                            "¿Se realizó Carga viral al momento del inicio de la TAR?": "Si se realizó",
+                            "Carga viral al inicio de la TAR": "0",
+                            "Tenía coinfección con el virus de la hepatitis B (VHB) al iniciar la TAR": "No tenía coinfección con VHB",
+                            "Tenía coinfección con hepatitis C (VHC) crónica al iniciar TAR": "No tenía coinfección con VHC",
+                            "Tenía coinfección con tuberculosis activa al iniciar TAR": "No tenía coinfección con tuberculosis"
+                        },
+                        "Información del Primer Cambio de Esquema TAR": {
+                            "Fecha del cambio del esquema inicial de TAR": "2025-03-29 00:00:00",
+                            "Causa del cambio de medicamento con el que inició la TAR": "Por razones administrativas",
+                            "¿Ha tenido fallas desde el inicio de la TAR hasta el reporte actual?": "No especificado",
+                            "Medicamento 1 que ocasionó el cambio": "3TC/DTG",
+                            "Medicamento 2 que ocasionó el cambio": "No especificado",
+                            "Medicamento 3 que ocasionó el cambio": "No especificado",
+                            "Medicamento 4 que ocasionó el cambio": "No especificado"
+                        },
+                        "Patologías que definen SIDA": {
+                            "¿Infecciones bacterianas múltiples o recurrentes?": "No",
+                            "¿Candidiasis esofágica, traqueal, bronquial o pulmonar?": "No",
+                            "¿Tuberculosis pulmonar (solo en personas mayores o iguales a 6 años de edad) o extrapulmonar?": "No",
+                            "¿Cáncer de cérvix invasivo? (solo para personas mayores o iguales a 6 años de edad)": "No",
+                            "¿Coccidioidomicosis diseminada o extrapulmonar?": "No especificado",
+                            "¿Citomegalovirus de cualquier órgano excepto hígado, bazo, o ganglios linfáticos? En mayores de 1 mes de edad": "No",
+                            "¿Retinitis por citomegalovirus (con pérdida de la visión)?": "No",
+                            "¿Herpes simple con úlceras mucocutáneas de más de un mes de duración o causando bronquitis, neumonitis o esofagitis? (en mayores de 1 mes de edad)": "No",
+                            "¿Diarrea por isospora belli o cryptosporidium de más de un mes de duración?": "No",
+                            "¿Histoplasmosis diseminada o extrapulmonar?": "No",
+                            "¿Linfoma de Burkitt, inmunoblástico, o primario del sistema nervioso central?": "No",
+                            "¿Neumonía por pneumocystis jiroveci?": "No",
+                            "¿Neumonía recurrente?": "No",
+                            "¿Septicemia por salmonella recurrente?": "No",
+                            "¿Infección diseminada o extrapulmonar por micobacterium avium, kansasii u otras especies de micobacterias?": "No",
+                            "¿Criptococosis extrapulmonar?": "No",
+                            "¿Sarcoma de Kaposi?": "No",
+                            "¿Síndrome de desgaste asociado al VIH?": "No",
+                            "¿Leucoencefalopatía multifocal progresiva o encefalopatía por VIH?": "No",
+                            "¿Toxoplasmosis cerebral? (solo en personas mayores de 1 mes de edad)": "No",
+                            "¿Demencia asociada al VIH? (solo para personas con diagnóstico de VIH antes de 2017)": "No",
+                            "¿Neumonía intersticial linfoidea?(solo para personas con diagnóstico de VIH antes de 2017)": "No"
+                        },
+                        "Seguimiento VIH/SIDA": {
+                            "Estadío clínico actual": "Estadío 1",
+                            "Vacunación contra la hepatitis A": "No se vacunó porque tiene niveles de anticuerpos adecuados contra la Hepatitis A.",
+                            "Vacunación contra la hepatitis B": "No se vacunó porque tiene niveles de anticuerpos adecuados contra el antígeno de superficie de hepatitis B",
+                            "Vacunación contra neumococo": "No se aplicó porque aún no la requiere",
+                            "Vacunación contra la Influenza": "No se aplicó por otras razones",
+                            "Se hizo PPD o pruebas equivalentes para la identificación de tuberculosis latente en los últimos 12 meses": "No especificado",
+                            "Recibió tratamiento para tuberculosis latente en los últimos 12 meses": "No especificado",
+                            "Se hizo tamizaje para sífilis en la persona que vive con VIH en los últimos 12 meses": "No especificado",
+                            "Recibió tratamiento para Sífilis": "No especificado",
+                            "Clasificación de Sífilis": "No especificado",
+                            "Se hizo tamizaje para VPH anal (hombre/mujer) en la persona que vive con VIH, en los últimos 12 meses": "No especificado",
+                            "Se hizo tamizaje para hepatitis B en la persona que vive con VIH en los últimos 12 meses": "No especificado",
+                            "Se hizo tamizaje para hepatitis C en la persona que vive con VIH en los últimos 12 meses": "No especificado",
+                            "Profilaxis para MAC (Mycobacterium avium complex)": "No especificado",
+                            "Profilaxis para Criptococo neoformans": "No especificado",
+                            "Profilaxis para pneumocystis jirovecii": "No especificado",
+                            "¿Tiene Dislipidemia?": "No especificado",
+                            "¿Tiene neuropatía periférica?": "No especificado",
+                            "¿Tiene lipoatrofia o lipodistrofia?": "No especificado",
+                            "¿Tiene coinfección con hepatitis B crónica?": "No especificado",
+                            "¿Tiene coinfección con hepatitis C crónica?": "No especificado",
+                            "¿Tiene Anemia?": "No especificado",
+                            "¿Tiene Cirrosis hepática?": "No especificado",
+                            "¿Tiene enfermedad renal crónica?": "No especificado",
+                            "¿Tiene Enfermedad Coronaria?": "No especificado",
+                            "¿Tiene o ha tenido otras infecciones de transmisión sexual diferentes a sífilis o hepatitis B en los últimos 12 meses?": "No especificado",
+                            "¿Tiene neoplasia no relacionada con Sida?": "No especificado"
+                        },
+                        "Calculadora Framingham": {
+                            "Edad": "29 años (1 años - 200 años)",
+                            "P.A. Sistólica": "100 mmHg (1 mmHg - 500 mmHg)",
+                            "Colesterol Total": "106 mg/dL (1 mg/dL - 5000 mg/dL)",
+                            "Colesterol HDL": "38 mg/dL (1 mg/dL - 5000 mg/dL)",
+                            "En tratamiento para la Hipertensión": "No",
+                            "Fumador de cigarrillos": "No",
+                            "Paciente con Diabetes": "No",
+                            "Resultado Framingham (%)": "0.63 (0 - 100 )"
+                        },
+                        "Tasa de Filtración Glomerular": {
+                            "Sexo": "Mujer",
+                            "Raza": "Negro",
+                            "Edad": "29 años (1 años - 200 años)",
+                            "Creatinina sérica": "1 mg/dL (0 mg/dL - 500 mg/dL)",
+                            "Tasa de Filtración Glomerular": "88.17 ( - )"
+                        },
+                        "Paraclínicos al momento de diagnóstico": {
+                            "Estadío clínico al momento del diagnóstico": "Estadío 1",
+                            "¿Se realizó conteo de linfocitos T CD4 al momento del diagnóstico?": "Si se realizó",
+                            "Conteo de linfocitos T CD4 al momento del diagnóstico": "587",
+                            "¿Se realizó carga viral al momento del diagnóstico?": "Si se realizó",
+                            "Carga viral al momento del diagnóstico": "0"
+                        },
+                        "Próxima Cita": {
+                            "Próxima Cita Probable en (Meses)": "3",
+                            "Justificación": "Por Criterio Médico"
+                        }
+                    }
+                },
+                {
+                    "actividad_encuentro": "ATENCION INTEGRAL A PACIENTES VIVIENDO CON VIH/SIDA",
+                    "sub_actividad_encuentro": "CONSULTA DE INGRESO POR MEDICO",
+                    "profesional_encuentro": "Steven Calderon Paez",
+                    "fecha_hora_encuentro": "2025-03-29 08:40:00",
+                    "datos_del_modal": {
+                        "Acompañante y Responsable": {
+                            "Nombre del acompañante": "LILIAN VANESSA SINISTERRA CASIERRA",
+                            "Teléfono del acompañante": "No especificado",
+                            "Parentesco del Acompañante": "Otro responsable",
+                            "Nombre del Responsable": "LILIAN VANESSA SINISTERRA CASIERRA",
+                            "Teléfono del Responsable": "No especificado",
+                            "Parentesco del Responsable": "Otro responsable"
+                        },
+                        "Motivo de Consulta": {
+                            "Motivo de Consulta": "Ingreso al programa"
+                        },
+                        "Enfermedad Actual": {
+                            "Enfermedad Actual": "Pcte de 29 años con Dx VIH desde el año 2022 quien inicia manejo en recuperar ips, estadio A1 inicio tratamiento con Dovato el cual ha sido su unico esquema, refiere buena adherencia y tolerancia al mismo. Ahora ingresa direccionada a Fundacion Siam para continuar tratramiento y seguimiento de patologia de alto costo dado finalizacion de contrato de su eps con Recuperar. Actualmente comenta sentirse en buenas condiciones generales de salud, comenta ultimo ingreso por urgencias en el 2024 por cuadro de amigdalitis y al parecer por reaccion alergia posterior a cambio de medicamento por desabastecimiento de Dovato ( no hay registro de esta informacion en HC). Niega sintomas infeccioso activos. Ultimos labs registrados en Hc aportada son de 29/10/2024: CARGA VIRAL VIH PENDIENTE REPORTE, ANTICUERPOS HEPATITIS C NO REACTIVO, UROANALISIS NO INFLAMATORIO, TGP: 8, TGO: 16, GLUCOSA: 84 MG/DL, HDL: 53 MG/DL, LDL: 36 MG/DL, COLESTEROL TOTAL: 99 MG/DL, TRIGLICÉRIDOS: 49 MG/DL, SEROLOGIA RPR NO REACTIVO, CREATININA: 0.98 MG/DL, PPD 0 MM, LINFOCITOS: 1520, HEMOGLOBINA: 9.2 G/DL, PLAQUETAS: 403.000. •ESQUEMA DE VACUNACIÓN: 1.HEPATITIS B: ANTI HBS (14/12/2023) ANTI HBS >1000. 14/12/2022 ---- 17.01.23 (2DA DOSIS) – 3RA DOSIS 15/06/2023 2.HEPATITIS A: 28/11/2023 HEPATITIS A ANTICUERPOS REACTIVOS (<0.10). NO REQUIERE VACUNACIÓN. 3.HEPATITIS C: 28/11/2023 ANTICUERPOS VHC NO REACTIVO 4.COVID-19: NO TIENE (NO LO DESEA) – REFIERE QUE NO HA ENFERMADO POR SARS COV-2.- 5.INFLUENZA: 15/06/2023-11/06/2024 6.NEUMOCOCO 13: 15/12/2022 7.NEUMOCOCO 23: 16/02/2023"
+                        },
+                        "Revisión por Sistemas": {
+                            "Piel y anexos": "niega",
+                            "Ojos": "niega",
+                            "ORL": "niega",
+                            "Cuello": "niega",
+                            "Cardiovascular": "niega",
+                            "Pulmonar": "niega",
+                            "Digestivo": "niega",
+                            "Genital/Urinario": "niega",
+                            "Músc. Esquel.": "niega",
+                            "Neurológico": "niega",
+                            "Otros": "niega"
+                        },
+                        "Detección de sintomáticos de Piel": {
+                            "Máculas, Pápulas o Nódulos": "No",
+                            "Alteraciones en la sensibilidad térmica y táctil": "No"
+                        },
+                        "Detección de Sintomáticos Respiratorios": {
+                            "Tos": "No",
+                            "Fiebre": "No",
+                            "Sudoración Nocturna": "No",
+                            "Pérdida de peso": "No"
+                        },
+                        "Salud Sexual y Reproductiva": {
+                            "Número de Contactos sexuales a lo largo de la vida": "No Refiere",
+                            "¿Tiene Relaciones Sexuales con?": "Hombres cis",
+                            "¿Pareja estable?": "No",
+                            "¿Pareja con Diagnostico VIH?": "No Aplica",
+                            "Método de planificación Familiar": "Otros métodos, Preservativos",
+                            "Vía de relaciones sexuales": "Vaginales",
+                            "Edad de la Sexarca": "22",
+                            "Orientación Sexual": "Heterosexualidad"
+                        },
+                        "Antecedentes Médicos": {
+                            "Patológicos": "VIH(2022)",
+                            "Farmacológicos": "Dovato",
+                            "Alérgicos": "no recuerda nombre al parecer fue un ARV",
+                            "Quirúrgicos": "niega",
+                            "Traumatológicos": "niega",
+                            "Familiares": "hipotiroidismo, hta",
+                            "Transfusionales": "niega",
+                            "Toxicológicos": "niega"
+                        },
+                        "Antecedentes Ginecoobstétricos": {
+                            "Edad de la Menarca": "14",
+                            "Gravidez": "0",
+                            "Mortinatos": "No especificado",
+                            "¿Tiene citología vaginal?": "No especificado",
+                            "Cáncer de Cérvix": "No especificado",
+                            "¿Cursa con Menopausia?": "No"
+                        },
+                        "Signos Vitales Adolescentes y Adultos": {
+                            "Peso": "53 Kg (20 Kg - 200 Kg)",
+                            "Talla": "170 cm (100 cm - 300 cm)",
+                            "IMC": "18.339100346021 (18.5 - 24.9 )",
+                            "Perímetro Abdominal": "0 ( - )",
+                            "Presión Sistólica": "118 mmHg (100 mmHg - 130 mmHg)",
+                            "Presión Diastólica": "84 mmHg (60 mmHg - 90 mmHg)",
+                            "Frecuencia Cardiaca": "67 bpm (60 bpm - 80 bpm)",
+                            "Frecuencia Respiratoria": "15 rpm (15 rpm - 20 rpm)",
+                            "Temperatura": "36.1 °C (35 °C - 37 °C)"
+                        },
+                        "Exámen Físico": {
+                            "Condiciones Generales": "Ingresa por sus propios medios, buen aspecto general",
+                            "Cara y Cuello": "Normocefala, escleras anictericas. Mucosas rosadas e hidratadas. Cuello movil sin masas ni adenopatias.",
+                            "Cardiopulmonar": "RsCsRsRs sincronicos sin soplos. Campos pulmonares normoventilados sin sobreagregados.",
+                            "Extremidades": "Siemtricas, moviles, no edemas.",
+                            "Abdomen": "Blando, no doloroso a la palpacion, no masas ni megalias, no signos de irritacion peritoneal. PPL bilateral neg,",
+                            "Genitales Externos": "No valoro",
+                            "Neurológicos": "Consciente, alerta sin signos de focalizacion neurologica.",
+                            "Piel": "Integra sin lesiones."
+                        },
+                        "Resumen e Intervenciones": {
+                            "Acciones": "Pcte con Dx VIH en manejo TAR con Dovato, buena adherencia y tolerancia a este esquema, comenta que el año paso por desabastecimiento de dicho frarmaco realizaron ajuste de tratamiento y presento alergia a uno de los compuestos del nuevo esquema sin embargo recuerda nombre del mismo (era 1 solo comprimido), considero deberia continuar con mismo esquema sin embargo por indicaciones administrativas se debe realizar ajuste de TAR se propone manejo con TDF/FTC+DRV/r, se informa de cambio a la pcte quien acepta el mismo y segun tolerancia definira si realizara proceso legal para retorno a esquema con Dovato. Dado ultimos labs realizados en Oct requiere actualizacion de los mismos para el mes de abril, se cargan ordenes medicas y se cita a nuevo control en 1 mes. Se explica a pcte quien refiere entender."
+                        },
+                        "Marcación de pacientes con VIH": {
+                            "Condición de VIH": "Paciente con diagnóstico de VIH, en TAR con cambio de esquema",
+                            "Condición de Gestación": "Mujer no embarazada",
+                            "Condición de Tuberculosis": "Sin Tuberculsis Activa"
+                        },
+                        "Antecedentes del Diagnóstico de VIH": {
+                            "Fecha de la prueba presuntiva": "2022-08-31 00:00:00",
+                            "Cómo llegó a la prueba presuntiva para el VIH": "Solicitada por el médico en estudio de un cuadro clínico sospechoso de VIH/Sida",
+                            "Fecha de confirmación del diagnóstico": "2022-09-09 00:00:00",
+                            "Fecha de inicio de la atención por VIH": "No especificado",
+                            "Mecanismo o vía de transmisión del VIH": "Transmisión sexual"
+                        },
+                        "Inicio de la Terapia Antiretroviral": {
+                            "Fecha de inicio de la terapia antirretroviral": "2023-11-17 00:00:00",
+                            "Motivo de inicio de la TAR": "Por infección temprana",
+                            "Medicamento 1 con el que inició la TAR": "3TC/DTG",
+                            "Medicamento 2 con el que inició la TAR": "No especificado",
+                            "Medicamento 3 con el que inició la TAR": "No especificado",
+                            "Medicamento 4 con el que inició la TAR": "No especificado",
+                            "Medicamento 5 con el que inició la TAR": "No especificado",
+                            "¿Conteo de linfocitos T CD4 al momento del inicio de la TAR?": "Si se realizó",
+                            "Valor conteo de linfocitos T CD4 al momento del inicio de la TAR": "587",
+                            "¿Se realizó Carga viral al momento del inicio de la TAR?": "Si se realizó",
+                            "Carga viral al inicio de la TAR": "0",
+                            "Tenía coinfección con el virus de la hepatitis B (VHB) al iniciar la TAR": "No tenía coinfección con VHB",
+                            "Tenía coinfección con hepatitis C (VHC) crónica al iniciar TAR": "No tenía coinfección con VHC",
+                            "Tenía coinfección con tuberculosis activa al iniciar TAR": "No tenía coinfección con tuberculosis"
+                        },
+                        "Información del Primer Cambio de Esquema TAR": {
+                            "Fecha del cambio del esquema inicial de TAR": "2025-03-29 00:00:00",
+                            "Causa del cambio de medicamento con el que inició la TAR": "Por razones administrativas",
+                            "¿Ha tenido fallas desde el inicio de la TAR hasta el reporte actual?": "No especificado",
+                            "Medicamento 1 que ocasionó el cambio": "3TC/DTG",
+                            "Medicamento 2 que ocasionó el cambio": "No especificado",
+                            "Medicamento 3 que ocasionó el cambio": "No especificado",
+                            "Medicamento 4 que ocasionó el cambio": "No especificado"
+                        },
+                        "Patologías que definen SIDA": {
+                            "¿Infecciones bacterianas múltiples o recurrentes?": "No especificado",
+                            "¿Candidiasis esofágica, traqueal, bronquial o pulmonar?": "No especificado",
+                            "¿Tuberculosis pulmonar (solo en personas mayores o iguales a 6 años de edad) o extrapulmonar?": "No especificado",
+                            "¿Cáncer de cérvix invasivo? (solo para personas mayores o iguales a 6 años de edad)": "No especificado",
+                            "¿Coccidioidomicosis diseminada o extrapulmonar?": "No especificado",
+                            "¿Citomegalovirus de cualquier órgano excepto hígado, bazo, o ganglios linfáticos? En mayores de 1 mes de edad": "No especificado",
+                            "¿Retinitis por citomegalovirus (con pérdida de la visión)?": "No especificado",
+                            "¿Herpes simple con úlceras mucocutáneas de más de un mes de duración o causando bronquitis, neumonitis o esofagitis? (en mayores de 1 mes de edad)": "No especificado",
+                            "¿Diarrea por isospora belli o cryptosporidium de más de un mes de duración?": "No especificado",
+                            "¿Histoplasmosis diseminada o extrapulmonar?": "No especificado",
+                            "¿Linfoma de Burkitt, inmunoblástico, o primario del sistema nervioso central?": "No especificado",
+                            "¿Neumonía por pneumocystis jiroveci?": "No especificado",
+                            "¿Neumonía recurrente?": "No especificado",
+                            "¿Septicemia por salmonella recurrente?": "No especificado",
+                            "¿Infección diseminada o extrapulmonar por micobacterium avium, kansasii u otras especies de micobacterias?": "No especificado",
+                            "¿Criptococosis extrapulmonar?": "No especificado",
+                            "¿Sarcoma de Kaposi?": "No especificado",
+                            "¿Síndrome de desgaste asociado al VIH?": "No especificado",
+                            "¿Leucoencefalopatía multifocal progresiva o encefalopatía por VIH?": "No especificado",
+                            "¿Toxoplasmosis cerebral? (solo en personas mayores de 1 mes de edad)": "No especificado",
+                            "¿Demencia asociada al VIH? (solo para personas con diagnóstico de VIH antes de 2017)": "No especificado",
+                            "¿Neumonía intersticial linfoidea?(solo para personas con diagnóstico de VIH antes de 2017)": "No especificado"
+                        },
+                        "Seguimiento VIH/SIDA": {
+                            "Estadío clínico actual": "Estadío 1",
+                            "Vacunación contra la hepatitis A": "No se vacunó porque tiene niveles de anticuerpos adecuados contra la Hepatitis A.",
+                            "Vacunación contra la hepatitis B": "No se vacunó porque tiene niveles de anticuerpos adecuados contra el antígeno de superficie de hepatitis B",
+                            "Vacunación contra neumococo": "No se aplicó porque aún no la requiere",
+                            "Vacunación contra la Influenza": "No se aplicó por otras razones",
+                            "Se hizo PPD o pruebas equivalentes para la identificación de tuberculosis latente en los últimos 12 meses": "No especificado",
+                            "Recibió tratamiento para tuberculosis latente en los últimos 12 meses": "No especificado",
+                            "Se hizo tamizaje para sífilis en la persona que vive con VIH en los últimos 12 meses": "No especificado",
+                            "Recibió tratamiento para Sífilis": "No especificado",
+                            "Clasificación de Sífilis": "No especificado",
+                            "Se hizo tamizaje para VPH anal (hombre/mujer) en la persona que vive con VIH, en los últimos 12 meses": "No especificado",
+                            "Se hizo tamizaje para hepatitis B en la persona que vive con VIH en los últimos 12 meses": "No especificado",
+                            "Se hizo tamizaje para hepatitis C en la persona que vive con VIH en los últimos 12 meses": "No especificado",
+                            "Profilaxis para MAC (Mycobacterium avium complex)": "No especificado",
+                            "Profilaxis para Criptococo neoformans": "No especificado",
+                            "Profilaxis para pneumocystis jirovecii": "No especificado",
+                            "¿Tiene Dislipidemia?": "No especificado",
+                            "¿Tiene neuropatía periférica?": "No especificado",
+                            "¿Tiene lipoatrofia o lipodistrofia?": "No especificado",
+                            "¿Tiene coinfección con hepatitis B crónica?": "No especificado",
+                            "¿Tiene coinfección con hepatitis C crónica?": "No especificado",
+                            "¿Tiene Anemia?": "No especificado",
+                            "¿Tiene Cirrosis hepática?": "No especificado",
+                            "¿Tiene enfermedad renal crónica?": "No especificado",
+                            "¿Tiene Enfermedad Coronaria?": "No especificado",
+                            "¿Tiene o ha tenido otras infecciones de transmisión sexual diferentes a sífilis o hepatitis B en los últimos 12 meses?": "No especificado",
+                            "¿Tiene neoplasia no relacionada con Sida?": "No especificado"
+                        },
+                        "Paraclínicos al momento de diagnóstico": {
+                            "Estadío clínico al momento del diagnóstico": "Estadío 1",
+                            "¿Se realizó conteo de linfocitos T CD4 al momento del diagnóstico?": "Si se realizó",
+                            "Conteo de linfocitos T CD4 al momento del diagnóstico": "587",
+                            "¿Se realizó carga viral al momento del diagnóstico?": "Si se realizó",
+                            "Carga viral al momento del diagnóstico": "0"
+                        },
+                        "Próxima Cita": {
+                            "Próxima Cita Probable en (Meses)": "1",
+                            "Justificación": "Nuevo/Reingreso/Cambio de Esquema"
+                        }
+                    }
+                }
+            ],
+            "quimico_farmaceutico": [
+                {
+                    "actividad_encuentro": "ATENCION INTEGRAL A PACIENTES VIVIENDO CON VIH/SIDA",
+                    "sub_actividad_encuentro": "SEGUIMIENTO FARMACOTERAPÉUTICO",
+                    "profesional_encuentro": "Maria Alejandra Ruiz Caicedo",
+                    "fecha_hora_encuentro": "2025-06-09 07:58:07",
+                    "datos_del_modal": {
+                        "Test SMAQ": {
+                            "¿Le va bien con el medicamento?": "Si",
+                            "¿Toma el medicamento en horarios diferentes a los recomendados?": "No",
+                            "¿Se le ha olvidado tomar los medicamentos alguna vez?": "No",
+                            "¿Tiene algún problema con los medicamentos?": "No",
+                            "Alguna vez ¿deja de tomar los fármacos si se siente mal?": "No",
+                            "¿Olvidó tomar los medicamentos durante el fin de semana?": "No",
+                            "En la última semana ¿cuántas veces no tomó alguna dosis?": "Ninguna",
+                            "Desde la última visita ¿cuántas veces no tomó alguna dosis?": "0 veces (0 veces - 90 veces)",
+                            "Resultado de Adherencia Cualitativo": "Adherente ( - 1000 )",
+                            "Resultado de Adherencia Cuantitativo": "95-100% (0 - 10000 )"
+                        },
+                        "Seguimiento Farmacoterapéutico": {
+                            "Tipo de Problema Relacionado con los Medicamentos": "NO PRM",
+                            "Tipo de Problema Relacionado con la Utilización de los Medicamentos": "No PRUM",
+                            "Gravedad": "Ninguna",
+                            "Evitabilidad": "No aplica",
+                            "Descripción del caso": "No especificado",
+                            "Tipo de Intervención": "Educar al paciente sobre adherencia al tratamiento",
+                            "Mecanismo de Intervención": "Presencial",
+                            "Descripción de la intervención": "Paciente: LILIAN VANESSA SINISTERRA CASIERRA Documento: CC 1107088958 Fecha de Impresión: 2025-06-09 EVOLUCIÓN Paciente femenina de 29 años Fecha de diagnóstico de VIH: 2022-08-31Estadío Clínico: 1 Antecedentes patológicos /Otros diagnósticos: No refiere // Actual: No refiere Otros medicamentos, productos naturales y/o vitaminas: No refiere Alergias: No refiere Hábitos alimenticios: Normales Hábitos Toxicológicos: Niega consumo de licor, cigarrillo o SPA. Hospitalizaciones Recientes: No HISTORIA FARMACOTERAPÉUTICA: Medicamento EMTRICITABINA 200 mg/TENOFOVIR 300 mg TABLETAS DE LIBERACION NO MODIFICADA DARUNAVIR 800 mg/RITONAVIR 100 mg TABLETAS DE LIBERACION NO (TFC/TDF)(DRV/R) Inicio: 2025-03-29 Profilaxis Antibiótica: No requiere METAS TERAPÉUTICAS: Carga viral debajo de los límites de detección, aumento del conteo de CD4 para prevenir aparición de Enfermedades Oportunistas (EO). ¿Medicamento NECESARIO?: Sí, la TAR permite mejorar las condiciones de vida de los pacientes, así como disminuir las complicaciones durante la enfermedad y reducir la mortalidad. ¿Medicamento EFECTIVO?: Sí, Paciente dentro de metas terapéuticas, CV indetectable indetectable ¿Medicamento SEGURO?: Sí, paciente No refiere inconvenientes con la TAR. No RAMs/PRMs/PRUMs INTERACCIONES: Sin interacciones de mayor relevancia clínica GENOTIPO: N/A INTERVENCIÓN SFT POR QF – PRESENCIAL 2025-02-XX Se realiza revisión del caso del paciente, a través de información documentada por los profesionales y farmacia, incluyendo Seguimiento Fármaco-Terapéutico (SFT) por QF Maria Alejandra Ruiz a paciente, de forma PRESENCIAL, con todos los EPP, indicando que: SUGERENCIA DE HORARIO DE MEDICAMENTOS POR QF: Despertar: 05:00AM, Desayuno: 08:00AM, Merienda: 10:00AM, Almuerzo: 12-01:00PM, Cena: 06-07:00PM. Dormir: 09-10:00PM. Se sugiera tomar a las 09:00PM. PACIENTE ACEPTA. INFORMACIÓN GENERAL POR QF Se refuerza adherencia. Brindo educación sobre el objetivo del tratamiento, indicándole reportar cualquier situación desfavorable con el tratamiento, se le alienta a seguir la farmacoterapia de acuerdo a las indicaciones del médico, resaltando las ventajas que esto tiene para su salud y no suspender el tratamiento sin orden del médico. Se le capacita sobre las consecuencias de la automedicación. En caso de presentar alergia, comunicar al médico experto en próxima cita. Se realizan recomendaciones generales sobre el VIH y el TAR (importancia de toma diaria de medicamentos a la misma hora, todos los días, preferiblemente sin alimentos, y tener un intervalo de 1 a 2 horas entre el TAR y los alimentos), se provee información sobre profilaxis antibiótica (preferiblemente tomar antibióticos con alimentos para evitar molestias gastrointestinales), uso de preservativo con cada relación, evitar conductas sexuales de riesgo, tener hábitos de vida saludables, realización de ejercicio al menos 30 minutos al día. Se recomienda evitar consumo de cigarrillo (tabaquismo), bebidas alcohólicas y Sustancias Psico Activas (SPA). Se explica de forma básica el mecanismo de acción de cómo el VIH (medido como carga viral en COPIAS) se reproduce utilizando como huésped principalmente a las células CD4+ (células del sistema inmune) en pacientes con VIH, haciendo que con el tiempo se disminuyan las defensas y el cuerpo esté expuesto a infecciones/ enfermedades oportunistas (tipo TB, hepatitis, etc.); se explica de forma básica el mecanismo por el cual el TAR impide al VIH reproducirse, disminuyendo la carga viral; se explican las implicaciones de una mala adherencia al TAR, los riesgos de la falla viral, mutaciones, resistencias, inmunosupresión, cambios de esquemas y menos opciones de tratamiento. Se realización explicación comparativa de similitudes y diferencias entre VIH y otras condiciones crónicas de salud (Por ejemplo: condiciones hormonales, HTA, Diabetes, trastornos de la Tiroides, psiquiátricos, dislipidemias, etc.) Se hace énfasis en sus derechos y deberes como paciente, principalmente su responsabilidad con la adherencia al TAR, asistir a controles con equipo interdisciplinario, agendar sus citas con tiempo, especialmente con médico experto, para evitar quedarse sin fórmula y sin medicamento, importancia de contestar las llamadas de Fundación SIAM que son de Números privados/desconocidos. El/ La paciente comprende y acepta la información brindada por QF Joyce Ramírez y se compromete a seguir las recomendaciones. Últimos Paraclínicos: 2025-04-02: CV: <20 Copias/mL CD4+: 662 cel/uL Últimas dispensaciones/Test SMAQ: 2025-06-09 (Presencial) Adherente (95-100%) y Tolerancia: Buena CONCEPTO QF: Acorde a la revisión de la trazabilidad del caso: La paciente confirma durante SFT presencial con QF que se toma los medicamentos, todos los días a la misma hora, separado de los alimentos y No presenta problemas asociados a la TAR. La paciente se considera adherente y tolerante al TAR acorde a los resultados de las últimas dispensaciones/Test SMAQ. Se refuerza adherencia PRESENCIAL + SUGERENCIA HORARIO DE MEDICAMENTOS en JUN/2025 Adherencia: Adherente (95-100%) Tolerancia: Buena"
+                        },
+                        "Próxima Cita": {
+                            "Próxima Cita Probable en (Meses)": "No especificado",
+                            "Justificación": "No especificado"
+                        }
+                    }
+                }
+            ]
+        },
+        "plan_de_manejo": {
+            "ordenes_de_servicio": [
+                {
+                    "fecha": "2025-03-29",
+                    "codigo": "903815",
+                    "servicio": "COLESTEROL DE ALTA DENSIDAD [HDL]",
+                    "estado": "Autorizado",
+                    "prestador": "IDIME SA",
+                    "activo_desde": "2025-06-07",
+                    "activo_hasta": "2025-06-30"
+                },
+                {
+                    "fecha": "2025-03-29",
+                    "codigo": "903816",
+                    "servicio": "COLESTEROL DE BAJA DENSIDAD [LDL] ENZIMATICO",
+                    "estado": "Autorizado",
+                    "prestador": "IDIME SA",
+                    "activo_desde": "2025-06-07",
+                    "activo_hasta": "2025-06-30"
+                },
+                {
+                    "fecha": "2025-03-29",
+                    "codigo": "903818",
+                    "servicio": "COLESTEROL TOTAL",
+                    "estado": "Autorizado",
+                    "prestador": "IDIME SA",
+                    "activo_desde": "2025-06-07",
+                    "activo_hasta": "2025-06-30"
+                },
+                {
+                    "fecha": "2025-03-29",
+                    "codigo": "903868",
+                    "servicio": "TRIGLICERIDOS",
+                    "estado": "Autorizado",
+                    "prestador": "IDIME SA",
+                    "activo_desde": "2025-06-07",
+                    "activo_hasta": "2025-06-30"
+                },
+                {
+                    "fecha": "2025-03-29",
+                    "codigo": "908832",
+                    "servicio": "VIRUS DE INMUNODEFICIENCIA HUMANA CARGA VIRAL",
+                    "estado": "Autorizado",
+                    "prestador": "IDIME SA",
+                    "activo_desde": "2025-06-07",
+                    "activo_hasta": "2025-06-30"
+                },
+                {
+                    "fecha": "2025-03-29",
+                    "codigo": "906744",
+                    "servicio": "LINFOCITOS T CUANTIFICACION CD3 CD4 CD8 POR CITOMETRIA DE FLUJO",
+                    "estado": "Autorizado",
+                    "prestador": "IDIME SA",
+                    "activo_desde": "2025-06-07",
+                    "activo_hasta": "2025-06-30"
+                },
+                {
+                    "fecha": "2025-03-29",
+                    "codigo": "903841",
+                    "servicio": "GLUCOSA EN SUERO LCR U OTRO FLUIDO DIFERENTE A ORINA",
+                    "estado": "Autorizado",
+                    "prestador": "IDIME SA",
+                    "activo_desde": "2025-06-07",
+                    "activo_hasta": "2025-06-30"
+                },
+                {
+                    "fecha": "2025-03-29",
+                    "codigo": "907106",
+                    "servicio": "UROANALISIS CON SEDIMENTO Y DENSIDAD URINARIA",
+                    "estado": "Autorizado",
+                    "prestador": "IDIME SA",
+                    "activo_desde": "2025-06-07",
+                    "activo_hasta": "2025-06-30"
+                }
+            ],
+            "formulas_medicas": [
+                {
+                    "fecha": "2025-06-07",
+                    "medicamento": "PRESERVATIVO MASCULINO",
+                    "cantidad": "15",
+                    "estado": "Activa"
+                },
+                {
+                    "fecha": "2025-06-07",
+                    "medicamento": "EMTRICITABINA 200 mg/TENOFOVIR 300 mg TABLETAS DE LIBERACION NO MODIFICADA",
+                    "cantidad": "30",
+                    "estado": "Activa"
+                },
+                {
+                    "fecha": "2025-06-07",
+                    "medicamento": "DARUNAVIR 800 mg/RITONAVIR 100 mg TABLETAS DE LIBERACION NO MODIFICADA",
+                    "cantidad": "30",
+                    "estado": "Activa"
+                },
+                {
+                    "fecha": "2025-06-03",
+                    "medicamento": "PRESERVATIVO MASCULINO",
+                    "cantidad": "15",
+                    "estado": "Activa"
+                },
+                {
+                    "fecha": "2025-06-03",
+                    "medicamento": "EMTRICITABINA 200 mg/TENOFOVIR 300 mg TABLETAS DE LIBERACION NO MODIFICADA",
+                    "cantidad": "30",
+                    "estado": "Activa"
+                },
+                {
+                    "fecha": "2025-06-03",
+                    "medicamento": "DARUNAVIR 800 mg/RITONAVIR 100 mg TABLETAS DE LIBERACION NO MODIFICADA",
+                    "cantidad": "30",
+                    "estado": "Activa"
+                },
+                {
+                    "fecha": "2025-05-02",
+                    "medicamento": "PRESERVATIVO MASCULINO",
+                    "cantidad": "15",
+                    "estado": "Activa"
+                },
+                {
+                    "fecha": "2025-05-02",
+                    "medicamento": "EMTRICITABINA 200 mg/TENOFOVIR 300 mg TABLETAS DE LIBERACION NO MODIFICADA",
+                    "cantidad": "30",
+                    "estado": "Activa"
+                },
+                {
+                    "fecha": "2025-05-02",
+                    "medicamento": "DARUNAVIR 800 mg/RITONAVIR 100 mg TABLETAS DE LIBERACION NO MODIFICADA",
+                    "cantidad": "30",
+                    "estado": "Activa"
+                },
+                {
+                    "fecha": "2025-04-01",
+                    "medicamento": "PRESERVATIVO MASCULINO",
+                    "cantidad": "15",
+                    "estado": "Activa"
+                },
+                {
+                    "fecha": "2025-04-01",
+                    "medicamento": "EMTRICITABINA 200 mg/TENOFOVIR 300 mg TABLETAS DE LIBERACION NO MODIFICADA",
+                    "cantidad": "30",
+                    "estado": "Activa"
+                },
+                {
+                    "fecha": "2025-04-01",
+                    "medicamento": "DARUNAVIR 800 mg/RITONAVIR 100 mg TABLETAS DE LIBERACION NO MODIFICADA",
+                    "cantidad": "30",
+                    "estado": "Activa"
+                },
+                {
+                    "fecha": "2025-03-29",
+                    "medicamento": "PRESERVATIVO MASCULINO",
+                    "cantidad": "15",
+                    "estado": "Activa"
+                },
+                {
+                    "fecha": "2025-03-29",
+                    "medicamento": "EMTRICITABINA 200 mg/TENOFOVIR 300 mg TABLETAS DE LIBERACION NO MODIFICADA",
+                    "cantidad": "30",
+                    "estado": "Activa"
+                },
+                {
+                    "fecha": "2025-03-29",
+                    "medicamento": "DARUNAVIR 800 mg/RITONAVIR 100 mg TABLETAS DE LIBERACION NO MODIFICADA",
+                    "cantidad": "30",
+                    "estado": "Activa"
+                }
+            ]
+        }
+    }
+]
