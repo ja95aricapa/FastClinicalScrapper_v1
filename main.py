@@ -294,7 +294,7 @@ def main():
         print("\nDriver cerrado.")
 
     print("\n--- Resultados Finales ---")
-    with open('resultados_pacientes.json', 'w', encoding='utf-8') as f:
+    with open('examples/resultados_pacientes.json', 'w', encoding='utf-8') as f:
         json.dump(pacientes, f, ensure_ascii=False, indent=4)
     print("Resultados guardados en 'resultados_pacientes.json'")
 
