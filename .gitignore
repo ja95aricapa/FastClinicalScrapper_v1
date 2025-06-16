@@ -4,3 +4,7 @@
 /.venv/
 /utils/
 /*.pyc
+
+# local
+/.env
+.env
