@@ -92,69 +92,109 @@ def capturar_html_pestanas(driver):
 
 # --- FUNCIÓN DE EXTRACCIÓN DE DATOS MEJORADA ---
 def extraer_datos(html_historia, html_plan, cedula):
-    """Extrae datos de las tablas de Historia Clínica y Plan de Manejo."""
+    """Extrae datos de las tablas de Historia Clínica, Plan de Manejo y Fórmulas Médicas."""
     print(f"Iniciando extracción de datos para cédula: {cedula}")
 
-    # --- Extracción de datos generales ---
+    # --- Extracción de datos generales del paciente ---
     soup_general = BeautifulSoup(html_historia, "html.parser")
     nombre_completo = "No encontrado"
     h1_el = soup_general.find('h1', class_='filament-header-heading')
     if h1_el:
-        # Limpia el texto para obtener solo el nombre
         nombre_completo = h1_el.get_text(strip=True).replace(f"Editar CC-{cedula}", "").strip()
 
     datos = {
         "CEDULA": cedula,
         "NOMBRE_PACIENTE": nombre_completo,
         "historia_clinica": [],
-        "plan_de_manejo": []
+        "plan_de_manejo": {"ordenes_de_servicio": [], "formulas_medicas": [] }, # Lista para las órdenes de servicio
     }
 
     # --- Extracción de la pestaña "Historia Clínica" ---
+    print("Extrayendo datos de la pestaña 'Historia Clínica'...")
     soup_h = BeautifulSoup(html_historia, "html.parser")
-    encuentros_header = soup_h.find('h2', class_='filament-tables-header-heading', string=lambda t: 'Encuentros' in t)
-    if encuentros_header:
-        encuentros_table = encuentros_header.find_parent('div', class_='filament-tables-header').find_next_sibling('div', class_='filament-tables-table-container')
-        if encuentros_table:
-            filas = encuentros_table.find('tbody').find_all('tr', class_='filament-tables-row')
-            print(f"Encontrados {len(filas)} encuentros en Historia Clínica.")
-            for fila in filas:
-                columnas = fila.find_all('div', class_='filament-tables-text-column')
-                if len(columnas) >= 4:
-                    encuentro = {
-                        "actividad": columnas[0].get_text(strip=True),
-                        "sub_actividad": columnas[1].get_text(strip=True),
-                        "profesional": columnas[2].get_text(strip=True),
-                        "fecha_hora": columnas[3].get_text(strip=True),
-                        "nota": columnas[4].get_text(strip=True) if len(columnas) > 4 else ""
-                    }
-                    datos["historia_clinica"].append(encuentro)
-
-    # --- Extracción de la pestaña "Plan de Manejo" ---
-    soup_p = BeautifulSoup(html_plan, "html.parser")
-    ordenes_header = soup_p.find('h2', class_='filament-tables-header-heading', string=lambda t: 'Ordenes De Servicio' in t)
-    if ordenes_header:
-        ordenes_table = ordenes_header.find_parent('div', class_='filament-tables-header').find_next_sibling('div', class_='filament-tables-table-container')
-        if ordenes_table:
-            filas = ordenes_table.find('tbody').find_all('tr', class_='filament-tables-row')
-            print(f"Encontradas {len(filas)} órdenes en Plan de Manejo.")
-            for fila in filas:
-                columnas = fila.find_all('td', class_='filament-tables-cell')
-                if len(columnas) >= 8: # Hay 1 celda de checkbox + 7 de datos + 1 de acciones
-                    orden = {
-                        "fecha": columnas[1].get_text(strip=True),
-                        "codigo": columnas[2].get_text(strip=True),
-                        "servicio": columnas[3].get_text(strip=True),
-                        "estado": columnas[4].get_text(strip=True),
-                        "prestador": columnas[5].get_text(strip=True),
-                        "activo_desde": columnas[6].get_text(strip=True),
-                        "activo_hasta": columnas[7].get_text(strip=True)
-                    }
-                    datos["plan_de_manejo"].append(orden)
+    encuentros_container = soup_h.find('div', class_='filament-tables-container')
     
+    if encuentros_container:
+        filas_encuentros = encuentros_container.find_all('div', attrs={"wire:key": lambda x: x and ".table.records." in x})
+        print(f"Encontrados {len(filas_encuentros)} encuentros en Historia Clínica.")
+        
+        for fila in filas_encuentros:
+            columnas = fila.find_all('div', class_='filament-tables-text-column')
+            if len(columnas) >= 4:
+                datos["historia_clinica"].append({
+                    "actividad": columnas[0].get_text(strip=True),
+                    "sub_actividad": columnas[1].get_text(strip=True),
+                    "profesional": columnas[2].get_text(strip=True),
+                    "fecha_hora": columnas[3].get_text(strip=True),
+                    "nota": columnas[4].get_text(strip=True) if len(columnas) > 4 else "Sin nota"
+                })
+    else:
+        print("No se encontró el contenedor de encuentros en 'Historia Clínica'.")
+
+    # --- Extracción de la pestaña "Plan de Manejo" (Órdenes y Fórmulas) ---
+    print("Extrayendo datos de la pestaña 'Plan de Manejo'...")
+    soup_p = BeautifulSoup(html_plan, "html.parser")
+    # En la pestaña "Plan" puede haber varias tablas, las buscamos todas.
+    todos_los_contenedores_de_tablas = soup_p.find_all('div', class_='filament-tables-container')
+
+    for container in todos_los_contenedores_de_tablas:
+        header = container.find('h2', class_='filament-tables-header-heading')
+        if not header:
+            continue
+        
+        header_text = header.get_text(strip=True)
+        
+        # --- Procesar tabla de Órdenes de Servicio ---
+        if 'Ordenes De Servicio' in header_text:
+            tabla = container.find('table', class_='filament-tables-table')
+            if tabla and tabla.find('tbody'):
+                filas_ordenes = tabla.find('tbody').find_all('tr', class_='filament-tables-row')
+                print(f"Encontradas {len(filas_ordenes)} órdenes en Plan de Manejo.")
+                for fila in filas_ordenes:
+                    columnas = fila.find_all('td', class_='filament-tables-cell')
+                    if len(columnas) >= 7:
+                        datos["plan_de_manejo"]["ordenes_de_servicio"].append({
+                            "fecha": columnas[0].get_text(strip=True),
+                            "codigo": columnas[1].get_text(strip=True),
+                            "servicio": columnas[2].get_text(strip=True),
+                            "estado": columnas[3].get_text(strip=True),
+                            "prestador": columnas[4].get_text(strip=True),
+                            "activo_desde": columnas[5].get_text(strip=True),
+                            "activo_hasta": columnas[6].get_text(strip=True)
+                        })
+
+        # --- NUEVO: Procesar tabla de Fórmulas Médicas ---
+        elif 'Fórmulas Médicas' in header_text:
+            tabla = container.find('table', class_='filament-tables-table')
+            if tabla and tabla.find('tbody'):
+                filas_formulas = tabla.find('tbody').find_all('tr', class_='filament-tables-row')
+                print(f"Encontradas {len(filas_formulas)} entradas de fórmulas médicas.")
+                for fila in filas_formulas:
+                    columnas_principales = fila.find_all('td', class_='filament-tables-cell')
+                    
+                    # Extraer datos comunes de la fila principal de la fórmula
+                    fecha_formula = columnas_principales[0].get_text(strip=True)
+                    estado_formula = columnas_principales[2].get_text(strip=True)
+                    
+                    # Celda que contiene la tabla anidada de medicamentos
+                    celda_medicamentos = columnas_principales[1]
+                    tabla_interna = celda_medicamentos.find('table')
+                    
+                    if tabla_interna and tabla_interna.find('tbody'):
+                        filas_medicamentos = tabla_interna.find('tbody').find_all('tr')
+                        print(f"  -> Procesando {len(filas_medicamentos)} medicamentos en la fórmula del {fecha_formula}.")
+                        for med_fila in filas_medicamentos:
+                            celdas_med = med_fila.find_all('td')
+                            if len(celdas_med) == 2:
+                                datos["plan_de_manejo"]["formulas_medicas"].append({
+                                    "fecha": fecha_formula,
+                                    "medicamento": celdas_med[0].get_text(strip=True),
+                                    "cantidad": celdas_med[1].get_text(strip=True),
+                                    "estado": estado_formula
+                                })
+
     print(f"Extracción finalizada para el paciente {nombre_completo}.")
     return datos
-
 def main():
     FASTCLINICA_URL, USER, PASS = get_env_vars()
     if not all([FASTCLINICA_URL, USER, PASS]):
@@ -171,11 +211,10 @@ def main():
         
         for i, cedula in enumerate(cedulas):
             print(f"\n--- Procesando cédula: {cedula} ({i+1}/{len(cedulas)}) ---")
-            ir_a_encuentros(driver, FASTCLINICA_URL)
             buscar_paciente(driver, cedula)
             html_historia, html_plan = capturar_html_pestanas(driver)
-            datos = extraer_datos(html_historia, html_plan, cedula)
-            pacientes.append(datos)
+            datos_paciente = extraer_datos(html_historia, html_plan, cedula)
+            pacientes.append(datos_paciente)
             
     except Exception as e:
         print(f"\n!!! Error durante la ejecución: {e} !!!")
