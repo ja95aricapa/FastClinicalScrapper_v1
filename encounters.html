@@ -1009,18 +1009,55 @@
 
                                         <input wire:model.debounce.500ms="search" id="globalSearchInput"
                                             placeholder="Buscar" type="search" autocomplete="off"
-                                            class="block h-10 w-full rounded-lg border-transparent bg-gray-400/10 pl-10 placeholder-gray-500 outline-none transition duration-75 focus:border-primary-500 focus:bg-white focus:placeholder-gray-400 focus:ring-1 focus:ring-inset focus:ring-primary-500"
-                                            spellcheck="false" data-ms-editor="true">
+                                            class="block h-10 w-full rounded-lg border-transparent bg-gray-400/10 pl-10 placeholder-gray-500 outline-none transition duration-75 focus:border-primary-500 focus:bg-white focus:placeholder-gray-400 focus:ring-1 focus:ring-inset focus:ring-primary-500">
                                     </div>
                                 </div>
 
+                                <div x-data="{ isOpen: true }" x-show="isOpen"
+                                    x-on:keydown.escape.window="isOpen = false" x-on:click.away="isOpen = false"
+                                    x-on:open-global-search-results.window="isOpen = true"
+                                    class="filament-global-search-results-container absolute right-0 top-auto z-10 mt-2 w-screen max-w-xs overflow-hidden rounded-xl shadow-xl rtl:left-0 rtl:right-auto sm:max-w-lg"
+                                    bis_skin_checked="1">
+                                    <div class="max-h-96 overflow-x-hidden rounded-xl bg-white shadow"
+                                        bis_skin_checked="1">
+                                        <ul class="filament-global-search-result-group divide-y">
+                                            <li class="sticky top-0 z-10">
+                                                <header
+                                                    class="bg-gray-50/80 px-6 py-2 backdrop-blur-xl backdrop-saturate-150">
+                                                    <p class="text-xs font-bold uppercase tracking-wider text-gray-500">
+                                                        Pacientes
+                                                    </p>
+                                                </header>
+                                            </li>
+
+                                            <li class="filament-global-search-result">
+                                                <div class="relative block px-6 py-4 hover:bg-gray-500/5 focus:bg-gray-500/5 focus:ring-1 focus:ring-gray-300"
+                                                    bis_skin_checked="1">
+                                                    <a href="https://fundacionsiam.fastclinica.com/clinica/patients/27374/edit"
+                                                        class="">
+                                                        <p class="font-medium">
+                                                            CC-1107088958 LILIAN VANESSA SINISTERRA CASIERRA
+                                                        </p>
+
+                                                        <p
+                                                            class="space-x-2 text-sm font-medium text-gray-500 rtl:space-x-reverse">
+                                                        </p>
+                                                    </a>
+
+                                                </div>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
                             </div>
 
 
                         </div>
 
                         <!-- Livewire Component wire-end:q9TUIqoOUsPnJqsNp8Tn -->
-                        <div wire:id="X6GADyYm8UlE1btel8wa" bis_skin_checked="1">
+                        <div wire:id="X6GADyYm8UlE1btel8wa"
+                            wire:initial-data="{&quot;fingerprint&quot;:{&quot;id&quot;:&quot;X6GADyYm8UlE1btel8wa&quot;,&quot;name&quot;:&quot;filament.core.notifications&quot;,&quot;locale&quot;:&quot;es&quot;,&quot;path&quot;:&quot;clinica\/encounters&quot;,&quot;method&quot;:&quot;GET&quot;,&quot;v&quot;:&quot;acj&quot;},&quot;effects&quot;:{&quot;listeners&quot;:[&quot;notificationSent&quot;,&quot;notificationsSent&quot;,&quot;notificationClosed&quot;]},&quot;serverMemo&quot;:{&quot;children&quot;:[],&quot;errors&quot;:[],&quot;htmlHash&quot;:&quot;8f16ba1f&quot;,&quot;data&quot;:{&quot;isFilamentNotificationsComponent&quot;:true,&quot;notifications&quot;:[]},&quot;dataMeta&quot;:{&quot;wireables&quot;:[&quot;notifications&quot;]},&quot;checksum&quot;:&quot;f666e69f3ee9bc73dab031bc8010c12db272f5926a2e7905c97a8e332481129b&quot;}}"
+                            bis_skin_checked="1">
                             <div class="filament-notifications pointer-events-none fixed inset-4 z-50 mx-auto flex gap-3 items-end flex-col-reverse justify-end"
                                 role="status" bis_skin_checked="1">
                             </div>
