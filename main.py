@@ -10,6 +10,17 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException, StaleElementReferenceException
 from bs4 import BeautifulSoup
+from transformers import AutoTokenizer, AutoModelForCausalLM
+import torch
+
+# ---- CONFIG MODEL ----
+MODEL_ID = "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
+tokenizer = AutoTokenizer.from_pretrained(MODEL_ID, trust_remote_code=True)
+model = AutoModelForCausalLM.from_pretrained(MODEL_ID, trust_remote_code=True)
+model.eval()
+if torch.cuda.is_available():
+    model.to("cuda")
+# ----------------------
 
 def get_env_vars():
     """Carga las variables de entorno desde el archivo .env."""
@@ -244,6 +255,45 @@ def procesar_plan_de_manejo(driver, datos_paciente):
     return datos_paciente
 
 
+def resumir_paciente(datos_paciente, max_chars=500):
+    """
+    Usa DeepSeek R1 para generar un resumen de hasta max_chars caracteres
+    de la información del paciente.
+    """
+    print("Generando resumen del paciente...")
+    datos_json = json.dumps(datos_paciente, ensure_ascii=False)
+    prompt = (
+        "### Instrucción:\n"
+        f"Resume esta ficha de paciente en ≤{max_chars} caracteres.\n\n"
+        "### Datos del paciente:\n"
+        f"{datos_json}\n\n"
+        "### Resumen:"
+    )
+    # Tokenizamos
+    inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=2048)
+    if torch.cuda.is_available():
+        inputs = {k: v.to("cuda") for k, v in inputs.items()}
+
+    input_ids = inputs["input_ids"][0]
+    prompt_len = input_ids.shape[0]
+
+    # Generación
+    out = model.generate(
+        **inputs,
+        max_new_tokens=200,
+        do_sample=False,
+        eos_token_id=tokenizer.eos_token_id,
+        pad_token_id=tokenizer.pad_token_id,
+    )
+    generated_ids = out[0][prompt_len:]            # sólo tokens nuevos
+    resumen = tokenizer.decode(generated_ids,         # decodificamos nuevos tokens
+                               skip_special_tokens=True
+                              ).strip()
+    # Asegurarnos de recortar a max_chars
+    print(f"Resumen generado: {len(resumen)} caracteres.")
+    return resumen[:max_chars]
+
+
 def main():
     FASTCLINICA_URL, USER, PASS = get_env_vars()
     if not all([FASTCLINICA_URL, USER, PASS]):
@@ -276,6 +326,11 @@ def main():
 
             datos_paciente = capturar_y_procesar_historia(driver, datos_paciente)
             datos_paciente = procesar_plan_de_manejo(driver, datos_paciente)
+            
+            # --- NUEVO: resumir ---
+            resumen = resumir_paciente(datos_paciente, max_chars=500)
+            datos_paciente["resumen_rapido"] = resumen
+
             pacientes.append(datos_paciente)
             
     except Exception as e:
