@@ -1,19 +1,19 @@
 # -*- coding: utf-8 -*-
 """
 Script para extraer y resumir información clínica de pacientes desde la plataforma FastClínica.
+Versión optimizada con procesamiento en paralelo para resúmenes y medición de rendimiento.
 
 Arquitectura:
 1. Carga de configuración y del modelo de IA.
-2. Fase de Extracción (Scraping):
+2. Fase de Extracción (Scraping Secuencial):
    - Inicia un único WebDriver de Selenium.
    - Itera sobre una lista de cédulas de pacientes.
    - Para cada paciente, extrae la información de la historia clínica y el plan de manejo.
    - Almacena los datos brutos.
    - Cierra el WebDriver.
-3. Fase de Procesamiento (Resumen):
-   - Itera sobre los datos brutos de cada paciente.
-   - Pre-procesa y limpia los datos para optimizar el prompt.
-   - Utiliza un modelo de IA (DeepSeek) para generar un resumen clínico.
+3. Fase de Procesamiento (Resumen en Paralelo):
+   - Utiliza un ThreadPoolExecutor para procesar a todos los pacientes simultáneamente.
+   - Cada hilo de trabajo pre-procesa, limpia y genera el resumen para un paciente.
    - Añade el resumen a los datos del paciente.
 4. Almacenamiento:
    - Guarda los datos completos y enriquecidos en un archivo JSON.
@@ -26,6 +26,7 @@ import os
 import time
 import json
 from typing import List, Dict, Any, Tuple, Optional
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Carga de variables de entorno
 from dotenv import load_dotenv
@@ -91,7 +92,7 @@ def init_driver() -> webdriver.Chrome:
     opts.add_argument("--no-sandbox")
     opts.add_argument("--disable-dev-shm-usage")
     opts.add_argument("--window-size=1920,1200")
-    opts.add_argument("--log-level=3")  # Muestra solo errores fatales
+    opts.add_argument("--log-level=3")
     opts.add_experimental_option("excludeSwitches", ["enable-logging"])
 
     service = ChromeService()
@@ -116,9 +117,7 @@ def cargar_modelo_ia(model_id: str) -> Tuple[PreTrainedModel, PreTrainedTokenize
 
     tokenizer = AutoTokenizer.from_pretrained(model_id, trust_remote_code=True)
     model = AutoModelForCausalLM.from_pretrained(
-        model_id,
-        trust_remote_code=True,
-        torch_dtype=torch.bfloat16,  # Usar bfloat16 para mejor rendimiento si es soportado
+        model_id, trust_remote_code=True, torch_dtype=torch.bfloat16
     )
 
     model.eval()
@@ -147,18 +146,14 @@ def login(driver: webdriver.Chrome, url: str, user: str, password: str) -> None:
     print("-> Navegando a la página de login...")
     driver.get(f"{url}/login")
     wait = WebDriverWait(driver, 20)
-
     print("-> Ingresando credenciales...")
     email_field = wait.until(EC.presence_of_element_located((By.ID, "email")))
     email_field.send_keys(user)
-
     driver.find_element(by=By.ID, value="password").send_keys(password)
-
     submit_button = wait.until(
         EC.element_to_be_clickable((By.XPATH, "//button[@type='submit']"))
     )
     submit_button.click()
-
     wait.until(
         EC.presence_of_element_located(
             (By.XPATH, "//h1[contains(text(), 'Escritorio')]")
@@ -177,24 +172,19 @@ def buscar_paciente(driver: webdriver.Chrome, cedula: str) -> None:
     """
     wait = WebDriverWait(driver, 20)
     print(f"-> Buscando al paciente con cédula: {cedula}...")
-
     search_input = wait.until(
         EC.presence_of_element_located((By.XPATH, "//input[@id='globalSearchInput']"))
     )
     search_input.clear()
     search_input.send_keys(cedula)
-
     # Espera explícita para que la búsqueda asíncrona se complete
     time.sleep(2)
-
     resultado_selector = f"//div[contains(@class, 'filament-global-search-results-container')]//a[contains(., 'CC-{cedula}')]"
     resultado_link = wait.until(
         EC.element_to_be_clickable((By.XPATH, resultado_selector))
     )
-
     print("-> Resultado de búsqueda encontrado. Navegando a la página del paciente...")
     resultado_link.click()
-
     wait.until(EC.url_contains("/patients/"))
     print(f"-> Página del paciente {cedula} cargada correctamente.")
 
@@ -212,21 +202,17 @@ def extraer_secciones_modal(modal_html: str) -> Dict[str, Dict[str, str]]:
     """
     soup = BeautifulSoup(modal_html, "html.parser")
     secciones_data = {}
-
     secciones = soup.find_all("div", class_="filament-forms-section-component")
     for seccion in secciones:
         header = seccion.find("h3", class_="pointer-events-none")
         if not header:
             continue
-
         titulo_seccion = header.get_text(strip=True)
         secciones_data[titulo_seccion] = {}
-
         campos = seccion.find_all("div", class_="filament-forms-field-wrapper")
         for campo in campos:
             label_el = campo.find("label")
             valor_el = campo.find("div", class_="filament-forms-placeholder-component")
-
             if label_el and valor_el:
                 label = label_el.get_text(strip=True)
                 # Limpia y normaliza espacios en el valor extraído
@@ -234,7 +220,6 @@ def extraer_secciones_modal(modal_html: str) -> Dict[str, Dict[str, str]]:
                 secciones_data[titulo_seccion][label] = (
                     valor if valor else "No especificado"
                 )
-
     return secciones_data
 
 
@@ -244,6 +229,7 @@ def capturar_y_procesar_historia(
     """
     Navega a la pestaña 'Historia Clínica', extrae datos de los encuentros médicos
     y de químico farmacéutico, y los añade al diccionario del paciente.
+    Ahora maneja de forma segura los encuentros que no tienen un botón 'Vista'.
 
     Args:
         driver (webdriver.Chrome): La instancia del WebDriver.
@@ -260,15 +246,12 @@ def capturar_y_procesar_historia(
     )
     historia_tab.click()
 
-    # Esperar a que la tabla de encuentros esté presente
     wait.until(
         EC.presence_of_element_located(
             (By.CSS_SELECTOR, "div.filament-tables-table-container")
         )
     )
-    time.sleep(
-        3
-    )  # Pausa adicional para asegurar la carga completa de los datos en la tabla
+    time.sleep(3)
 
     filas_selector = (By.CSS_SELECTOR, "div[wire\\:sortable] > div[wire\\:key]")
     try:
@@ -284,7 +267,6 @@ def capturar_y_procesar_historia(
 
     for i in range(len(filas_encuentros)):
         try:
-            # Re-localizar la fila en cada iteración para evitar StaleElementReferenceException
             fila_actual = wait.until(
                 EC.presence_of_all_elements_located(filas_selector)
             )[i]
@@ -302,14 +284,30 @@ def capturar_y_procesar_historia(
             )
 
             if es_medico or es_quimico:
+                # ---- MODIFICACIÓN CLAVE ----
+                # Usamos find_elements (plural) para verificar la existencia del botón.
+                # Esto devuelve una lista. Si la lista está vacía, el botón no existe.
+                vista_buttons = fila_actual.find_elements(
+                    By.XPATH, ".//button[contains(., 'Vista')]"
+                )
+
+                if not vista_buttons:
+                    # Si la lista está vacía, el botón 'Vista' no existe. Omitimos este encuentro.
+                    print(
+                        f"    -> ADVERTENCIA: El encuentro '{columnas[1].text.strip()}' no tiene botón 'Vista'. Omitiendo."
+                    )
+                    continue  # Pasa al siguiente encuentro en el bucle 'for'
+
+                # Si llegamos aquí, el botón sí existe y podemos continuar.
+                vista_button = vista_buttons[
+                    0
+                ]  # Tomamos el primer (y único) botón de la lista
+
                 tipo_profesional = "medico" if es_medico else "quimico_farmaceutico"
                 print(
                     f"    -> Procesando encuentro de '{tipo_profesional.replace('_', ' ')}'..."
                 )
 
-                vista_button = fila_actual.find_element(
-                    By.XPATH, ".//button[contains(., 'Vista')]"
-                )
                 driver.execute_script(
                     "arguments[0].scrollIntoView({block: 'center'});", vista_button
                 )
@@ -350,7 +348,6 @@ def capturar_y_procesar_historia(
             print(
                 f"    -> ERROR al procesar una fila de encuentro: {type(e).__name__}. Continuando..."
             )
-            # Intento de cierre de emergencia si el modal quedó abierto
             try:
                 emergency_close = driver.find_element(
                     By.XPATH, "//button[span[contains(text(), 'Cerrar')]]"
@@ -370,6 +367,7 @@ def procesar_plan_de_manejo(
     """
     Navega a la pestaña 'Plan de Manejo', extrae órdenes y fórmulas, y los
     añade al diccionario del paciente.
+    Ahora usa un clic de JavaScript para evitar errores de intercepción.
 
     Args:
         driver (webdriver.Chrome): La instancia del WebDriver.
@@ -384,12 +382,16 @@ def procesar_plan_de_manejo(
         "//button[contains(., 'Plan de manejo')] | //a[contains(., 'Plan de manejo')]"
     )
     plan_tab = wait.until(EC.element_to_be_clickable((By.XPATH, plan_tab_selector)))
-    plan_tab.click()
-    time.sleep(3)
 
+    # ---- MODIFICACIÓN CLAVE ----
+    # En lugar de plan_tab.click(), usamos un clic de JavaScript.
+    # Esto evita el error "ElementClickInterceptedException" si otro elemento
+    # (como un encabezado fijo) está cubriendo el botón.
+    driver.execute_script("arguments[0].click();", plan_tab)
+
+    time.sleep(3)
     soup_p = BeautifulSoup(driver.page_source, "html.parser")
     contenedores = soup_p.find_all("div", class_="filament-tables-container")
-
     for container in contenedores:
         header_text = container.find(
             "h2", class_="filament-tables-header-heading"
@@ -397,9 +399,7 @@ def procesar_plan_de_manejo(
         tabla = container.find("table", class_="filament-tables-table")
         if not (tabla and tabla.find("tbody")):
             continue
-
         tbody = tabla.find("tbody")
-
         if "Ordenes De Servicio" in header_text:
             filas = tbody.find_all("tr", class_="filament-tables-row")
             print(f"  -- Encontradas {len(filas)} órdenes de servicio.")
@@ -417,7 +417,6 @@ def procesar_plan_de_manejo(
                             "activo_hasta": cols[6].get_text(strip=True),
                         }
                     )
-
         elif "Fórmulas Médicas" in header_text:
             filas = tbody.find_all("tr", class_="filament-tables-row")
             print(f"  -- Encontradas {len(filas)} fórmulas médicas.")
@@ -425,11 +424,9 @@ def procesar_plan_de_manejo(
                 cols = fila.find_all("td", class_="filament-tables-cell")
                 if len(cols) < 3:
                     continue
-
                 tabla_meds = cols[1].find("table")
                 if not (tabla_meds and tabla_meds.find("tbody")):
                     continue
-
                 for med_fila in tabla_meds.find("tbody").find_all("tr"):
                     celdas_med = med_fila.find_all("td")
                     if len(celdas_med) == 2:
@@ -467,7 +464,6 @@ def preparar_datos_para_resumen(datos_paciente: Dict[str, Any]) -> Dict[str, Any
         "concepto_clave_farmaceutico": {},
         "tratamiento_actual_formulado": [],
     }
-
     # Extraer del encuentro médico más reciente
     if datos_paciente["historia_clinica"]["medico"]:
         ultimo_med = sorted(
@@ -488,7 +484,6 @@ def preparar_datos_para_resumen(datos_paciente: Dict[str, Any]) -> Dict[str, Any
                 "Enfermedad Actual"
             ),
         }
-
     # Extraer y limpiar el concepto del químico farmacéutico más reciente
     if datos_paciente["historia_clinica"]["quimico_farmaceutico"]:
         ultimo_qf = sorted(
@@ -500,13 +495,11 @@ def preparar_datos_para_resumen(datos_paciente: Dict[str, Any]) -> Dict[str, Any
         concepto_completo = modal_qf.get("Seguimiento Farmacoterapéutico", {}).get(
             "Descripción de la intervención", ""
         )
-
         concepto_final = (
             concepto_completo.split("CONCEPTO QF:")[-1].strip()
             if "CONCEPTO QF:" in concepto_completo
             else ""
         )
-
         datos_clave["concepto_clave_farmaceutico"] = {
             "fecha": ultimo_qf.get("fecha_hora_encuentro"),
             "adherencia": modal_qf.get("Test SMAQ", {}).get(
@@ -514,7 +507,6 @@ def preparar_datos_para_resumen(datos_paciente: Dict[str, Any]) -> Dict[str, Any
             ),
             "resumen_farmaceutico": concepto_final,
         }
-
     # Extraer tratamiento actual
     if datos_paciente["plan_de_manejo"]["formulas_medicas"]:
         medicamentos = [
@@ -522,10 +514,10 @@ def preparar_datos_para_resumen(datos_paciente: Dict[str, Any]) -> Dict[str, Any
             for f in datos_paciente["plan_de_manejo"]["formulas_medicas"]
             if "PRESERVATIVO" not in f["medicamento"]
         ]
+        # Los 3 últimos únicos
         datos_clave["tratamiento_actual_formulado"] = list(dict.fromkeys(medicamentos))[
             :3
-        ]  # Los 3 últimos únicos
-
+        ]
     return datos_clave
 
 
@@ -533,10 +525,11 @@ def resumir_paciente(
     model: PreTrainedModel,
     tokenizer: PreTrainedTokenizer,
     datos_paciente: Dict[str, Any],
-    max_chars: int = 5000,
-) -> str:
+    max_chars: int = 500,
+) -> Tuple[str, str]:
     """
-    Genera un resumen clínico conciso utilizando el modelo de IA.
+    Genera un resumen clínico para un solo paciente. Esta función está diseñada
+    para ser ejecutada en un hilo separado.
 
     Args:
         model (PreTrainedModel): El modelo de IA cargado.
@@ -545,12 +538,16 @@ def resumir_paciente(
         max_chars (int): El número máximo de caracteres para el resumen final.
 
     Returns:
-        str: El resumen generado por el modelo.
+        Tuple[str, str]: Una tupla con la cédula del paciente y el resumen generado.
     """
-    print("  -- Preparando datos clave y limpios para el resumen...")
+    cedula = datos_paciente["CEDULA"]
+    print(f"  -> [Hilo Inicia] Procesando resumen para paciente {cedula}...")
+
+    # Iniciar cronómetro para este paciente específico
+    start_time_paciente = time.monotonic()
+
     datos_clave = preparar_datos_para_resumen(datos_paciente=datos_paciente)
     datos_json = json.dumps(datos_clave, ensure_ascii=False, indent=2)
-
     prompt = (
         "### Instrucción:\n"
         "Eres un asistente médico experto. Analiza los siguientes datos clínicos clave de un paciente. "
@@ -560,30 +557,30 @@ def resumir_paciente(
         f"{datos_json}\n\n"
         "### Resumen Médico Conciso:"
     )
-
-    print("  -- Generando resumen con el modelo (modo controlado)...")
     inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=3072)
     if torch.cuda.is_available():
         inputs = {k: v.to("cuda") for k, v in inputs.items()}
-
     prompt_len = inputs["input_ids"].shape[1]
-
-    # Parámetros de generación controlados para alta calidad en resúmenes
     out = model.generate(
         **inputs,
-        max_new_tokens=150,
+        max_new_tokens=200,
         do_sample=False,
         num_beams=4,
         early_stopping=True,
         eos_token_id=tokenizer.eos_token_id,
         pad_token_id=tokenizer.pad_token_id,
     )
-
     generated_ids = out[0][prompt_len:]
     resumen = tokenizer.decode(generated_ids, skip_special_tokens=True).strip()
 
-    print(f"  -- Resumen generado ({len(resumen)} caracteres).")
-    return resumen[:max_chars]
+    # Detener cronómetro y reportar
+    end_time_paciente = time.monotonic()
+    duration_paciente = end_time_paciente - start_time_paciente
+    print(
+        f"  -> [Hilo Finaliza] Resumen para {cedula} generado en {duration_paciente:.2f} segundos."
+    )
+
+    return cedula, resumen[:max_chars]
 
 
 # ==============================================================================
@@ -598,11 +595,10 @@ def main(cedulas_a_procesar: List[str]) -> None:
     Args:
         cedulas_a_procesar (List[str]): Una lista de las cédulas a procesar.
     """
+    start_total_time = time.monotonic()
     print("======================================================")
     print("INICIO DEL PROCESO DE EXTRACCIÓN Y RESUMEN DE PACIENTES")
     print("======================================================")
-
-    # --- Fase de Configuración ---
     FASTCLINICA_URL, USER, PASS = get_env_vars()
     if not all([FASTCLINICA_URL, USER, PASS]):
         print(
@@ -614,19 +610,18 @@ def main(cedulas_a_procesar: List[str]) -> None:
         model_id="deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
     )
 
-    # --- Fase de Extracción de Datos (Scraping) ---
+    # --- FASE 1: EXTRACCIÓN DE DATOS (SECUENCIAL) ---
     print("\n--- FASE 1: EXTRACCIÓN DE DATOS ---")
+    start_scraping_time = time.monotonic()
     driver = init_driver()
     pacientes_extraidos = []
     try:
         login(driver=driver, url=FASTCLINICA_URL, user=USER, password=PASS)
-
         for i, cedula in enumerate(cedulas_a_procesar):
             print(
                 f"\n--- Procesando paciente {i+1}/{len(cedulas_a_procesar)} (Cédula: {cedula}) ---"
             )
             buscar_paciente(driver=driver, cedula=cedula)
-
             # Extraer nombre completo del paciente
             soup_general = BeautifulSoup(driver.page_source, "html.parser")
             h1_el = soup_general.find("h1", class_="filament-header-heading")
@@ -635,7 +630,6 @@ def main(cedulas_a_procesar: List[str]) -> None:
                 if h1_el
                 else "No encontrado"
             )
-
             # Inicializar estructura de datos para este paciente
             datos_paciente = {
                 "CEDULA": cedula,
@@ -643,16 +637,30 @@ def main(cedulas_a_procesar: List[str]) -> None:
                 "historia_clinica": {"medico": [], "quimico_farmaceutico": []},
                 "plan_de_manejo": {"ordenes_de_servicio": [], "formulas_medicas": []},
             }
-
             datos_paciente = capturar_y_procesar_historia(
                 driver=driver, datos_paciente=datos_paciente
             )
             datos_paciente = procesar_plan_de_manejo(
                 driver=driver, datos_paciente=datos_paciente
             )
-
             pacientes_extraidos.append(datos_paciente)
             print(f"--- Finalizada la extracción para el paciente {cedula}. ---")
+
+            # Si no es el último paciente de la lista, vuelve al escritorio para reiniciar el estado.
+            # Esto previene errores de estado viciado en aplicaciones SPA.
+            if i < len(cedulas_a_procesar) - 1:
+                print(
+                    "\n-> Volviendo al escritorio para reiniciar el estado antes del siguiente paciente..."
+                )
+                driver.get(f"{FASTCLINICA_URL}")
+                # Esperamos a que el encabezado del escritorio esté visible para confirmar la navegación.
+                wait = WebDriverWait(driver, 20)
+                wait.until(
+                    EC.presence_of_element_located(
+                        (By.XPATH, "//h1[contains(text(), 'Escritorio')]")
+                    )
+                )
+                print("-> Estado reiniciado en el escritorio.")
 
     except Exception as e:
         print(f"\n!!! ERROR CRÍTICO DURANTE EL SCRAPING: {type(e).__name__} - {e} !!!")
@@ -660,48 +668,74 @@ def main(cedulas_a_procesar: List[str]) -> None:
         screenshot_path = f"error_screenshot_{timestamp}.png"
         driver.save_screenshot(screenshot_path)
         print(f"-> Screenshot de emergencia guardado en: {screenshot_path}")
-
     finally:
         # Asegurarse de que el driver se cierra siempre al final de la extracción
         if "driver" in locals() and driver:
             driver.quit()
             print("\n-> WebDriver cerrado de forma segura.")
 
-    # --- Fase de Procesamiento y Resumen con IA ---
+    end_scraping_time = time.monotonic()
+    duration_scraping = end_scraping_time - start_scraping_time
+    print(
+        f"\n--- FIN FASE 1: Tiempo total de extracción: {duration_scraping:.2f} segundos ---"
+    )
+
+    # --- FASE 2: RESUMEN CON IA (EN PARALELO) ---
     if not pacientes_extraidos:
         print("\nNo se extrajeron datos de ningún paciente. Finalizando proceso.")
         return
 
-    print("\n\n--- FASE 2: RESUMEN CON INTELIGENCIA ARTIFICIAL ---")
-    pacientes_finales = []
-    for paciente_data in pacientes_extraidos:
-        cedula = paciente_data["CEDULA"]
-        print(f"\n--- Resumiendo paciente con cédula: {cedula} ---")
-        try:
-            resumen_ia = resumir_paciente(
-                model=modelo_ia, tokenizer=tokenizador_ia, datos_paciente=paciente_data
-            )
-            paciente_data["resumen_rapido"] = resumen_ia
-        except Exception as e:
-            print(
-                f"  -> ERROR al generar resumen para {cedula}: {type(e).__name__} - {e}"
-            )
-            paciente_data["resumen_rapido"] = "Error al generar resumen."
+    print("\n\n--- FASE 2: RESUMEN CON INTELIGENCIA ARTIFICIAL (EN PARALELO) ---")
+    start_summarization_time = time.monotonic()
 
-        pacientes_finales.append(paciente_data)
+    # Crear un mapa para poder actualizar los diccionarios originales
+    pacientes_por_cedula = {p["CEDULA"]: p for p in pacientes_extraidos}
 
-    # --- Fase de Almacenamiento ---
+    with ThreadPoolExecutor(max_workers=4) as executor:  # Puedes ajustar max_workers
+        # Enviar todas las tareas al pool de hilos
+        future_to_cedula = {
+            executor.submit(
+                resumir_paciente, modelo_ia, tokenizador_ia, paciente_data
+            ): paciente_data["CEDULA"]
+            for paciente_data in pacientes_extraidos
+        }
+
+        # Procesar los resultados a medida que se completan
+        for future in as_completed(future_to_cedula):
+            cedula_original = future_to_cedula[future]
+            try:
+                # El resultado es una tupla (cedula, resumen)
+                cedula_res, resumen_ia = future.result()
+                # Actualizar el diccionario del paciente con el resumen
+                pacientes_por_cedula[cedula_res]["resumen_rapido"] = resumen_ia
+            except Exception as e:
+                print(f"!!! ERROR en el hilo para la cédula {cedula_original}: {e} !!!")
+                pacientes_por_cedula[cedula_original][
+                    "resumen_rapido"
+                ] = "Error al generar resumen en paralelo."
+
+    end_summarization_time = time.monotonic()
+    duration_summarization = end_summarization_time - start_summarization_time
+    print(
+        f"\n--- FIN FASE 2: Tiempo total de resumen en paralelo: {duration_summarization:.2f} segundos ---"
+    )
+
+    # --- FASE 3: ALMACENAMIENTO DE RESULTADOS ---
     print("\n\n--- FASE 3: ALMACENAMIENTO DE RESULTADOS ---")
     output_filename = "resultados_pacientes_completos.json"
     os.makedirs("examples", exist_ok=True)
     output_path = os.path.join("examples", output_filename)
-
     with open(output_path, "w", encoding="utf-8") as f:
-        json.dump(pacientes_finales, f, ensure_ascii=False, indent=4)
-
+        # Usamos los valores del diccionario actualizado, que es la lista original de diccionarios
+        json.dump(list(pacientes_por_cedula.values()), f, ensure_ascii=False, indent=4)
     print(f"\nResultados finales guardados en: '{output_path}'")
+
+    end_total_time = time.monotonic()
+    duration_total = end_total_time - start_total_time
     print("======================================================")
-    print("PROCESO COMPLETADO EXITOSAMENTE")
+    print(
+        f"PROCESO COMPLETADO. TIEMPO TOTAL DE EJECUCIÓN: {duration_total:.2f} segundos"
+    )
     print("======================================================")
 
 
@@ -709,15 +743,11 @@ def main(cedulas_a_procesar: List[str]) -> None:
 # 6. PUNTO DE ENTRADA DEL SCRIPT
 # ==============================================================================
 if __name__ == "__main__":
-    # Define aquí la lista de cédulas que quieres procesar
     lista_de_cedulas = [
         "1107088958",
-        "15876438",
-        "10016859",
-        "13491162",
-        "1090452911",
+        "32271898",
         "1026553146",
-    ]  # Ejemplo: puedes añadir más -> ["123456", "789012"]
-
-    # Llama a la función principal con la lista de cédulas
+        "8168228",
+        "1046903180",
+    ]
     main(cedulas_a_procesar=lista_de_cedulas)
