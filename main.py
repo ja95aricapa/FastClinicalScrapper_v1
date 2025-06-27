@@ -284,19 +284,33 @@ def extraer_secciones_modal(modal_html: str) -> Dict[str, Dict[str, str]]:
         header = seccion.find("h3", class_="pointer-events-none")
         if not header:
             continue
-        titulo_seccion = header.get_text(strip=True)
-        secciones_data[titulo_seccion] = {}
+        titulo = header.get_text(strip=True)
+        secciones_data[titulo] = {}
         campos = seccion.find_all("div", class_="filament-forms-field-wrapper")
         for campo in campos:
             label_el = campo.find("label")
             valor_el = campo.find("div", class_="filament-forms-placeholder-component")
-            if label_el and valor_el:
-                label = label_el.get_text(strip=True)
-                # Limpia y normaliza espacios en el valor extraído
-                valor = " ".join(valor_el.get_text(separator=" ", strip=True).split())
-                secciones_data[titulo_seccion][label] = (
-                    valor if valor else "No especificado"
-                )
+            if not (label_el and valor_el):
+                continue
+            label = label_el.get_text(strip=True)
+            valor = (
+                " ".join(valor_el.get_text(separator=" ", strip=True).split())
+                or "No especificado"
+            )
+            # Normalizar algunos labels comunes
+            label_norm = label
+
+            # Ejemplos de normalización:
+            if label_norm in ["Fecha de diagnóstico", "Fecha diagnóstico"]:
+                label_norm = "Fecha de diagnóstico"
+            elif label_norm.lower().startswith("estadio clínico"):
+                label_norm = "Estadio Clínico"
+            elif "hábitos" in label_norm.lower():
+                if "aliment" in label_norm.lower():
+                    label_norm = "Hábitos Alimenticios"
+                else:
+                    label_norm = "Hábitos Toxicológicos"
+            secciones_data[titulo][label_norm] = valor
     return secciones_data
 
 
@@ -548,53 +562,80 @@ def preparar_datos_para_resumen(datos_paciente: Dict[str, Any]) -> Dict[str, Any
             key=lambda x: x["fecha_hora_encuentro"],
             reverse=True,
         )[0]
-        modal = ultimo_med.get("datos_del_modal", {})
-        datos_clave["diagnostico_principal"] = modal.get(
-            "Antecedentes Médicos", {}
-        ).get("Patológicos")
-        datos_clave["datos_relevantes_ultima_consulta_medica"] = {
-            "fecha": ultimo_med.get("fecha_hora_encuentro"),
-            "resumen_medico_del_dia": modal.get("Resumen e Intervenciones", {}).get(
-                "Acciones"
-            ),
-            "enfermedad_actual_y_labs": modal.get("Enfermedad Actual", {}).get(
-                "Enfermedad Actual"
-            ),
-        }
-    # Extraer y limpiar el concepto del químico farmacéutico más reciente
+        mod_med = ultimo_med.get("datos_del_modal", {})
+        datos_clave.update(
+            {
+                "paciente_sexo": mod_med.get("Datos Generales", {}).get("Sexo", ""),
+                "paciente_edad": mod_med.get("Datos Generales", {}).get("Edad", ""),
+                "fecha_diagnostico": mod_med.get("Enfermedad Actual", {}).get(
+                    "Fecha de diagnóstico", ""
+                ),
+                "estadio_clinico": mod_med.get("Enfermedad Actual", {}).get(
+                    "Estadio Clínico", ""
+                ),
+                "antecedentes_patologicos": mod_med.get("Antecedentes Médicos", {}).get(
+                    "Patológicos", ""
+                ),
+                "antecedentes_actuales": mod_med.get("Antecedentes Médicos", {}).get(
+                    "Actuales", ""
+                ),
+                "otros_medicamentos": mod_med.get("Otros Medicamentos", {}).get(
+                    "Descripción", "No refiere"
+                ),
+                "alergias": mod_med.get("Alergias", {}).get(
+                    "Descripción", "No refiere"
+                ),
+                "habitos_alimenticios": mod_med.get("Hábitos Alimenticios", {}).get(
+                    "Descripción", "Normales"
+                ),
+                "habitos_toxicos": mod_med.get("Hábitos Toxicológicos", {}).get(
+                    "Descripción", "Niega"
+                ),
+                "hospitalizaciones_recientes": mod_med.get("Hospitalizaciones", {}).get(
+                    "Recientes", "No refiere"
+                ),
+            }
+        )
+        # Últimos paraclínicos
+        para = mod_med.get("Últimos Paraclínicos", {})
+        datos_clave.update(
+            {
+                "fecha_paraclinico": para.get("Fecha", ""),
+                "cv_paraclinico": para.get("CV", ""),
+                "cd4_paraclinico": para.get("CD4+", ""),
+            }
+        )
+    # Datos del farmacéutico
     if datos_paciente["historia_clinica"]["quimico_farmaceutico"]:
         ultimo_qf = sorted(
             datos_paciente["historia_clinica"]["quimico_farmaceutico"],
             key=lambda x: x["fecha_hora_encuentro"],
             reverse=True,
         )[0]
-        modal_qf = ultimo_qf.get("datos_del_modal", {})
-        concepto_completo = modal_qf.get("Seguimiento Farmacoterapéutico", {}).get(
-            "Descripción de la intervención", ""
+        mod_qf = ultimo_qf.get("datos_del_modal", {})
+        pf = mod_qf.get("Seguimiento Farmacoterapéutico", {})
+        datos_clave.update(
+            {
+                "lista_medicamentos": [
+                    f["medicamento"]
+                    for f in datos_paciente["plan_de_manejo"]["formulas_medicas"]
+                ],
+                "profilaxis_antibiotica": pf.get(
+                    "Profilaxis Antibiótica", "No refiere"
+                ),
+                "metas_terapeuticas": pf.get("Metas Terapéuticas", ""),
+                "medicamento_necesario": pf.get("¿Medicamento NECESARIO?", ""),
+                "medicamento_efectivo": pf.get("¿Medicamento EFECTIVO?", ""),
+                "medicamento_seguro": pf.get("¿Medicamento SEGURO?", ""),
+                "interacciones": pf.get("Interacciones", "Ninguna"),
+                "genotipo": pf.get("Genotipo", "N/A"),
+                # SMAQ
+                "fecha_dispensacion": pf.get("Fecha", ""),
+                "modalidad_dispensacion": pf.get("Modalidad", ""),
+                "adherencia_test": pf.get("Resultado de Adherencia Cualitativo", ""),
+                "tolerancia_test": pf.get("Tolerancia", ""),
+            }
         )
-        concepto_final = (
-            concepto_completo.split("CONCEPTO QF:")[-1].strip()
-            if "CONCEPTO QF:" in concepto_completo
-            else ""
-        )
-        datos_clave["concepto_clave_farmaceutico"] = {
-            "fecha": ultimo_qf.get("fecha_hora_encuentro"),
-            "adherencia": modal_qf.get("Test SMAQ", {}).get(
-                "Resultado de Adherencia Cualitativo"
-            ),
-            "resumen_farmaceutico": concepto_final,
-        }
-    # Extraer tratamiento actual
-    if datos_paciente["plan_de_manejo"]["formulas_medicas"]:
-        medicamentos = [
-            f["medicamento"]
-            for f in datos_paciente["plan_de_manejo"]["formulas_medicas"]
-            if "PRESERVATIVO" not in f["medicamento"]
-        ]
-        # Los 3 últimos únicos
-        datos_clave["tratamiento_actual_formulado"] = list(dict.fromkeys(medicamentos))[
-            :3
-        ]
     return datos_clave
 
 
