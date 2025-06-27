@@ -27,7 +27,6 @@ import time
 import json
 from typing import List, Dict, Any, Tuple, Optional, Union
 from concurrent.futures import ThreadPoolExecutor, as_completed
-import os
 from docxtpl import DocxTemplate
 from datetime import date
 
@@ -68,13 +67,22 @@ from botocore.client import Config
 # ==============================================================================
 
 
-def get_env_vars() -> Tuple[Optional[str], Optional[str], Optional[str]]:
+def get_env_vars() -> Tuple[
+    Optional[str],
+    Optional[str],
+    Optional[str],
+    Optional[str],
+    Optional[str],
+    Optional[str],
+    Optional[str],
+    Optional[str],
+]:
     """
     Carga las variables de entorno desde el archivo .env y las retorna.
 
     Returns:
-        Tuple[Optional[str], Optional[str], Optional[str]]: Una tupla conteniendo la URL,
-        el usuario y la contraseña. Si alguna no está definida, será None.
+        Tuple[Optional[str]]: Una tupla conteniendo la URL,
+        el usuario, contraseña, etc. Si alguna no está definida, será None.
     """
     print("-> Cargando variables de entorno desde el archivo .env...")
     load_dotenv()
@@ -555,6 +563,13 @@ def preparar_datos_para_resumen(datos_paciente: Dict[str, Any]) -> Dict[str, Any
         "datos_relevantes_ultima_consulta_medica": {},
         "concepto_clave_farmaceutico": {},
         "tratamiento_actual_formulado": [],
+        # claves adicionales para la QF:
+        "concepto_qf": "",
+        "narrativa_intervencion": "",
+        "sugerencia_horarios": [],
+        "informacion_general": "",
+        "tipo_intervencion": "",
+        "modalidad_intervencion": "",
     }
     # Extraer del encuentro médico más reciente
     if datos_paciente["historia_clinica"]["medico"]:
@@ -710,7 +725,7 @@ def invocar_bedrock(cliente, modelo_id: str, prompt: str) -> str:
     # Construye el payload en el formato que espera Mistral/Mixtral/Titan
     body = {
         "prompt": prompt,
-        "max_tokens": 200,
+        "max_tokens": 4000,
         "temperature": 0.0,
         "top_p": 1.0,
         "top_k": 50,
@@ -733,26 +748,58 @@ def invocar_bedrock(cliente, modelo_id: str, prompt: str) -> str:
 
 
 def resumir_paciente_con_bedrock(
-    cliente: Any, datos_paciente: Dict[str, Any], model_id: str, max_chars: int = 500
+    cliente: Any, datos_paciente: Dict[str, Any], model_id: str, max_chars: int = 2000
 ) -> Tuple[str, str]:
     """
     Prepara el prompt y llama a invocar_bedrock para obtener el resumen.
     """
+    # Preparar datos clave como antes
     datos_clave = preparar_datos_para_resumen(datos_paciente=datos_paciente)
     datos_json = json.dumps(datos_clave, ensure_ascii=False, indent=2)
+
     prompt = (
         "### Instrucción:\n"
-        "Eres un asistente médico experto. Analiza los siguientes datos clínicos clave de un paciente. "
-        "Genera un resumen conciso y claro en español, de no más de 1500 caracteres. "
-        "Enfócate en el diagnóstico principal, el tratamiento actual, los resultados recientes más importantes (como Carga Viral y CD4 si los encuentras) y la adherencia del paciente.\n\n"
-        "### Datos Clave del Paciente:\n"
+        "Eres un químico farmacéutico asistencial experto. A partir de los datos del paciente, "
+        "genera **únicamente** un objeto JSON con estas cuatro claves en español, sin texto adicional:\n"
+        "  - narrativa_intervencion: Narrativa de la sesión SFT, tono profesional.\n"
+        "  - sugerencia_horarios: Lista de sugerencias de horario y aceptación.\n"
+        "  - informacion_general: Información general y educación al paciente.\n"
+        "  - concepto_qf: Impresiones finales, adherencia cualitativa y recomendaciones.\n\n"
+        "### Datos del Paciente:\n"
         f"{datos_json}\n\n"
-        "### Resumen Médico Conciso:"
+        "### Responde solo con el objeto JSON:"
+    )
+    # Invocación Bedrock
+    respuesta_texto = invocar_bedrock(
+        cliente=cliente, modelo_id=model_id, prompt=prompt
     )
 
-    resumen = invocar_bedrock(cliente=cliente, modelo_id=model_id, prompt=prompt)
-    # Recorta a max_chars por si acaso
-    return datos_paciente["CEDULA"], resumen
+    # Extraer substring JSON entre primer { y último }
+    resultado = {}
+    try:
+        start = respuesta_texto.find("{")
+        end = respuesta_texto.rfind("}")
+        if start != -1 and end != -1 and end > start:
+            json_fragment = respuesta_texto[start : end + 1]
+            resultado = json.loads(json_fragment)
+        else:
+            raise ValueError("No se encontró JSON completo")
+    except Exception:
+        # Fallback: todo en concepto_qf
+        resultado = {
+            "narrativa_intervencion": "",
+            "sugerencia_horarios": "",
+            "informacion_general": "",
+            "concepto_qf": respuesta_texto.strip()[:max_chars],
+        }
+
+    # Recortar valores si son muy largos
+    for clave in resultado:
+        if isinstance(resultado[clave], str) and len(resultado[clave]) > max_chars:
+            resultado[clave] = resultado[clave][:max_chars]
+
+    # Devolver la cédula y el dict de campos
+    return datos_paciente["CEDULA"], resultado
 
 
 # ==============================================================================
@@ -772,7 +819,7 @@ def generar_informes_word(pacientes: list, template_path: str, output_dir: str):
             "paciente_nombre": p["NOMBRE_PACIENTE"],
             "tipo_documento_id": "CC",
             "documento_id": p["CEDULA"],
-            "fecha_impresion": date.today().isoformat(),
+            "fecha_impresion": date.today().strftime("%d/%m/%Y"),
             "paciente_sexo": p.get("paciente_sexo", ""),
             "paciente_edad": p.get("paciente_edad", ""),
             "fecha_diagnostico": p.get("fecha_diagnostico", ""),
@@ -793,9 +840,14 @@ def generar_informes_word(pacientes: list, template_path: str, output_dir: str):
             "interacciones": p.get("interacciones", ""),
             "genotipo": p.get("genotipo", ""),
             "narrativa_intervencion": p.get("narrativa_intervencion", ""),
-            "sugerencia_horarios": p.get("sugerencia_horarios", ""),
+            "sugerencia_horarios": "\n".join(
+                f"{h.get('hora')}: {h.get('aceptacion','')}"
+                for h in p.get("sugerencia_horarios", [])
+            ),
             "informacion_general": p.get("informacion_general", ""),
             "concepto_qf": p.get("concepto_qf", ""),
+            "tipo_intervencion": p.get("tipo_intervencion", ""),
+            "modalidad_intervencion": p.get("modalidad_intervencion", ""),
             "fecha_paraclinico": p.get("fecha_paraclinico", ""),
             "cv_paraclinico": p.get("cv_paraclinico", ""),
             "cd4_paraclinico": p.get("cd4_paraclinico", ""),
@@ -939,7 +991,7 @@ def main(cedulas_a_procesar: List[str]) -> None:
         service_name="bedrock-runtime", service_type="client", region="us-east-1"
     )
 
-    with ThreadPoolExecutor(max_workers=4) as executor:  # Puedes ajustar max_workers
+    with ThreadPoolExecutor(max_workers=8) as executor:  # Puedes ajustar max_workers
         # Enviar todas las tareas al pool de hilos
         # con modelo local
         # future_to_cedula = {
@@ -963,15 +1015,19 @@ def main(cedulas_a_procesar: List[str]) -> None:
         for future in as_completed(future_to_cedula):
             cedula_original = future_to_cedula[future]
             try:
-                # El resultado es una tupla (cedula, resumen)
-                cedula_res, resumen_ia = future.result()
-                # Actualizar el diccionario del paciente con el resumen
-                pacientes_por_cedula[cedula_res]["resumen_rapido"] = resumen_ia
+                cedula_res, campos = future.result()
+                # Guardar cada campo en el diccionario del paciente
+                paciente = pacientes_por_cedula[cedula_res]
+                paciente["narrativa_intervencion"] = campos.get(
+                    "narrativa_intervencion", ""
+                )
+                paciente["sugerencia_horarios"] = campos.get("sugerencia_horarios", "")
+                paciente["informacion_general"] = campos.get("informacion_general", "")
+                paciente["concepto_qf"] = campos.get("concepto_qf", "")
             except Exception as e:
                 print(f"!!! ERROR en el hilo para la cédula {cedula_original}: {e} !!!")
-                pacientes_por_cedula[cedula_original][
-                    "resumen_rapido"
-                ] = "Error al generar resumen en paralelo."
+                paciente = pacientes_por_cedula[cedula_original]
+                paciente["concepto_qf"] = "Error al generar campos con IA."
 
     end_summarization_time = time.monotonic()
     duration_summarization = end_summarization_time - start_summarization_time
