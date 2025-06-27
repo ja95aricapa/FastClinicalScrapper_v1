@@ -27,6 +27,9 @@ import time
 import json
 from typing import List, Dict, Any, Tuple, Optional, Union
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import os
+from docxtpl import DocxTemplate
+from datetime import date
 
 # Carga de variables de entorno
 from dotenv import load_dotenv
@@ -41,8 +44,6 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import (
     TimeoutException,
-    NoSuchElementException,
-    StaleElementReferenceException,
 )
 
 # Parsing de HTML
@@ -163,6 +164,7 @@ def init_driver() -> webdriver.Chrome:
         webdriver.Chrome: La instancia del driver configurada.
     """
     print("-> Inicializando el WebDriver de Selenium...")
+    service = ChromeService(executable_path="utils/chromedriver")
     opts = ChromeOptions()
     # Descomentar para ejecutar en modo "headless" (sin interfaz gráfica)
     # opts.add_argument("--headless=new")
@@ -172,7 +174,6 @@ def init_driver() -> webdriver.Chrome:
     opts.add_argument("--log-level=3")
     opts.add_experimental_option("excludeSwitches", ["enable-logging"])
 
-    service = ChromeService()
     driver = webdriver.Chrome(service=service, options=opts)
     print("-> WebDriver inicializado correctamente.")
     return driver
@@ -755,7 +756,62 @@ def resumir_paciente_con_bedrock(
 
 
 # ==============================================================================
-# 5. FUNCIÓN PRINCIPAL DE ORQUESTACIÓN
+# 5. FUNCIÓN crear archivo word
+# ==============================================================================
+
+
+def generar_informes_word(pacientes: list, template_path: str, output_dir: str):
+    """
+    Genera un archivo .docx por paciente a partir de una plantilla y data.
+    """
+    os.makedirs(output_dir, exist_ok=True)
+    for p in pacientes:
+        tpl = DocxTemplate(template_path)
+        # Construir contexto plano para docxtpl
+        contexto = {
+            "paciente_nombre": p["NOMBRE_PACIENTE"],
+            "tipo_documento_id": "CC",
+            "documento_id": p["CEDULA"],
+            "fecha_impresion": date.today().isoformat(),
+            "paciente_sexo": p.get("paciente_sexo", ""),
+            "paciente_edad": p.get("paciente_edad", ""),
+            "fecha_diagnostico": p.get("fecha_diagnostico", ""),
+            "estadio_clinico": p.get("estadio_clinico", ""),
+            "antecedentes_patologicos": p.get("antecedentes_patologicos", ""),
+            "antecedentes_actuales": p.get("antecedentes_actuales", ""),
+            "otros_medicamentos": p.get("otros_medicamentos", ""),
+            "alergias": p.get("alergias", ""),
+            "habitos_alimenticios": p.get("habitos_alimenticios", ""),
+            "habitos_toxicos": p.get("habitos_toxicos", ""),
+            "hospitalizaciones_recientes": p.get("hospitalizaciones_recientes", ""),
+            "lista_medicamentos": "\n".join(p.get("lista_medicamentos", [])),
+            "profilaxis_antibiotica": p.get("profilaxis_antibiotica", ""),
+            "metas_terapeuticas": p.get("metas_terapeuticas", ""),
+            "medicamento_necesario": p.get("medicamento_necesario", ""),
+            "medicamento_efectivo": p.get("medicamento_efectivo", ""),
+            "medicamento_seguro": p.get("medicamento_seguro", ""),
+            "interacciones": p.get("interacciones", ""),
+            "genotipo": p.get("genotipo", ""),
+            "narrativa_intervencion": p.get("narrativa_intervencion", ""),
+            "sugerencia_horarios": p.get("sugerencia_horarios", ""),
+            "informacion_general": p.get("informacion_general", ""),
+            "concepto_qf": p.get("concepto_qf", ""),
+            "fecha_paraclinico": p.get("fecha_paraclinico", ""),
+            "cv_paraclinico": p.get("cv_paraclinico", ""),
+            "cd4_paraclinico": p.get("cd4_paraclinico", ""),
+            "fecha_dispensacion": p.get("fecha_dispensacion", ""),
+            "modalidad_dispensacion": p.get("modalidad_dispensacion", ""),
+            "adherencia_test": p.get("adherencia_test", ""),
+            "tolerancia_test": p.get("tolerancia_test", ""),
+        }
+        tpl.render(contexto)
+        out_path = os.path.join(output_dir, f"{p['CEDULA']}.docx")
+        tpl.save(out_path)
+        print(f"Informe generado: {out_path}")
+
+
+# ==============================================================================
+# 6. FUNCIÓN PRINCIPAL DE ORQUESTACIÓN
 # ==============================================================================
 
 
@@ -933,6 +989,12 @@ def main(cedulas_a_procesar: List[str]) -> None:
         json.dump(list(pacientes_por_cedula.values()), f, ensure_ascii=False, indent=4)
     print(f"\nResultados finales guardados en: '{output_path}'")
 
+    # --- FASE 4: GENERACIÓN DE INFORMES EN WORD ---
+    # Llamada a generación de Word
+    template = "utils/plantilla_base_v1.docx"
+    salida_docs = "informes_pacientes"
+    generar_informes_word(list(pacientes_por_cedula.values()), template, salida_docs)
+
     end_total_time = time.monotonic()
     duration_total = end_total_time - start_total_time
     print("======================================================")
@@ -949,8 +1011,8 @@ if __name__ == "__main__":
     lista_de_cedulas = [
         "1107088958",
         "32271898",
-        "1026553146",
-        "8168228",
-        "1046903180",
+        # "1026553146",
+        # "8168228",
+        # "1046903180",
     ]
     main(cedulas_a_procesar=lista_de_cedulas)
