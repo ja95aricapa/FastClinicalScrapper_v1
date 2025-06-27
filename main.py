@@ -25,7 +25,7 @@ Arquitectura:
 import os
 import time
 import json
-from typing import List, Dict, Any, Tuple, Optional
+from typing import List, Dict, Any, Tuple, Optional, Union
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Carga de variables de entorno
@@ -57,6 +57,11 @@ from transformers import (
     PreTrainedModel,
 )
 
+# aws
+import boto3
+from botocore.client import Config
+
+
 # ==============================================================================
 # 2. CONFIGURACIÓN Y FUNCIONES DE INICIALIZACIÓN
 # ==============================================================================
@@ -75,7 +80,79 @@ def get_env_vars() -> Tuple[Optional[str], Optional[str], Optional[str]]:
     url = os.getenv("FASTCLINICA_URL")
     user = os.getenv("FASTCLINICA_USER")
     password = os.getenv("FASTCLINICA_PASS")
-    return url, user, password
+    model_id = os.getenv("LOCAL_MODEL_ID")
+    aws_key_id = os.getenv("AWS_KEY_ID")
+    aws_secret_key = os.getenv("AWS_SECRET_KEY")
+    aws_region = os.getenv("AWS_REGION")
+    aws_bedrock_model_id = os.getenv("AWS_BEDROCK_MODEL_ID")
+    return (
+        url,
+        user,
+        password,
+        model_id,
+        aws_key_id,
+        aws_secret_key,
+        aws_region,
+        aws_bedrock_model_id,
+    )
+
+
+def get_aws_service(
+    service_name: str, service_type: str = "client", region: Union[str, None] = None
+) -> Union[boto3.client, boto3.resource]:
+    """
+    Function to get an AWS service client or resource.
+
+    Args:
+        service_name (str): Name of the AWS service (e.g., 's3', 'ec2').
+        service_type (str, optional): Type of AWS service ('client' or 'resource'). Defaults to 'client'.
+        region (Union[str, None], optional): AWS region to use. Defaults to None, which will use 'us-east-1'.
+
+    Raises:
+        ValueError: If service_type is not 'client' or 'resource'.
+
+    Returns:
+        Union[boto3.client, boto3.resource]: An AWS service client or resource.
+    """
+    PROFILE_NAME = os.getenv("PROFILE_NAME")
+    EXECUTION_ENVIRONMENT = os.getenv("EXECUTION_ENVIRONMENT")
+    if service_type not in ["client", "resource"]:
+        # Raise an error if the service_type is invalid
+        raise ValueError("Invalid service type, must be 'client' or 'resource'.")
+
+    # Create a boto3 session, using the PROFILE_NAME if in local environment
+    session = (
+        boto3.Session(profile_name=PROFILE_NAME)
+        if EXECUTION_ENVIRONMENT == "LOCAL"
+        else boto3.Session()
+    )
+    config = None
+
+    # Configure specific clients with additional parameters
+    if service_type == "client":
+        if service_name == "s3":
+            config = Config(signature_version="s3v4")
+        if service_name == "batch":
+            config = Config(
+                retries={"max_attempts": 10, "mode": "standard"},
+                max_pool_connections=50,  # Adjust this value as needed
+            )
+
+        # Create and return the service client
+        client = session.client(
+            service_name,
+            region_name=region if region else "us-east-1",
+            config=config,
+        )
+        return client
+    elif service_type == "resource":
+        # Create and return the service resource
+        resource = session.resource(
+            service_name,
+            region_name=region if region else "us-east-1",
+            config=config,
+        )
+        return resource
 
 
 def init_driver() -> webdriver.Chrome:
@@ -551,7 +628,7 @@ def resumir_paciente(
     prompt = (
         "### Instrucción:\n"
         "Eres un asistente médico experto. Analiza los siguientes datos clínicos clave de un paciente. "
-        "Genera un resumen conciso y claro en español, de no más de 500 caracteres. "
+        "Genera un resumen conciso y claro en español, de no más de 1500 caracteres. "
         "Enfócate en el diagnóstico principal, el tratamiento actual, los resultados recientes más importantes (como Carga Viral y CD4 si los encuentras) y la adherencia del paciente.\n\n"
         "### Datos Clave del Paciente:\n"
         f"{datos_json}\n\n"
@@ -583,6 +660,59 @@ def resumir_paciente(
     return cedula, resumen[:max_chars]
 
 
+### AWS ###
+def invocar_bedrock(cliente, modelo_id: str, prompt: str) -> str:
+    """
+    Invoca un foundation model en Bedrock (Mistral / Mixtral / Titan) y devuelve el texto generado.
+    """
+    # Construye el payload en el formato que espera Mistral/Mixtral/Titan
+    body = {
+        "prompt": prompt,
+        "max_tokens": 200,
+        "temperature": 0.0,
+        "top_p": 1.0,
+        "top_k": 50,
+    }
+
+    # Llama al InvokeModel con contentType y accept adecuados
+    resp = cliente.invoke_model(
+        modelId=modelo_id,
+        contentType="application/json",
+        accept="application/json",
+        body=json.dumps(body),
+    )
+
+    # Lee y parsea la respuesta JSON
+    resp_body = resp["body"].read().decode("utf-8")
+    data = json.loads(resp_body)
+
+    # Extrae el texto generado (para Mistral/Mixtral suele venir en results[0].content)
+    return data["outputs"][0]["text"]
+
+
+def resumir_paciente_con_bedrock(
+    cliente: Any, datos_paciente: Dict[str, Any], model_id: str, max_chars: int = 500
+) -> Tuple[str, str]:
+    """
+    Prepara el prompt y llama a invocar_bedrock para obtener el resumen.
+    """
+    datos_clave = preparar_datos_para_resumen(datos_paciente=datos_paciente)
+    datos_json = json.dumps(datos_clave, ensure_ascii=False, indent=2)
+    prompt = (
+        "### Instrucción:\n"
+        "Eres un asistente médico experto. Analiza los siguientes datos clínicos clave de un paciente. "
+        "Genera un resumen conciso y claro en español, de no más de 1500 caracteres. "
+        "Enfócate en el diagnóstico principal, el tratamiento actual, los resultados recientes más importantes (como Carga Viral y CD4 si los encuentras) y la adherencia del paciente.\n\n"
+        "### Datos Clave del Paciente:\n"
+        f"{datos_json}\n\n"
+        "### Resumen Médico Conciso:"
+    )
+
+    resumen = invocar_bedrock(cliente=cliente, modelo_id=model_id, prompt=prompt)
+    # Recorta a max_chars por si acaso
+    return datos_paciente["CEDULA"], resumen
+
+
 # ==============================================================================
 # 5. FUNCIÓN PRINCIPAL DE ORQUESTACIÓN
 # ==============================================================================
@@ -599,16 +729,34 @@ def main(cedulas_a_procesar: List[str]) -> None:
     print("======================================================")
     print("INICIO DEL PROCESO DE EXTRACCIÓN Y RESUMEN DE PACIENTES")
     print("======================================================")
-    FASTCLINICA_URL, USER, PASS = get_env_vars()
-    if not all([FASTCLINICA_URL, USER, PASS]):
+    (
+        FASTCLINICA_URL,
+        USER,
+        PASS,
+        MODEL_ID,
+        AWS_KEY_ID,
+        AWS_SECRET_KEY,
+        AWS_REGION,
+        AWS_BEDROCK_MODEL_ID,
+    ) = get_env_vars()
+    if not all(
+        [
+            FASTCLINICA_URL,
+            USER,
+            PASS,
+            MODEL_ID,
+            AWS_KEY_ID,
+            AWS_SECRET_KEY,
+            AWS_REGION,
+            AWS_BEDROCK_MODEL_ID,
+        ]
+    ):
         print(
             "\n!!! ERROR CRÍTICO: Asegúrate de que las variables de entorno estén definidas en .env !!!"
         )
         return
 
-    modelo_ia, tokenizador_ia = cargar_modelo_ia(
-        model_id="deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
-    )
+    modelo_ia, tokenizador_ia = cargar_modelo_ia(model_id=MODEL_ID)
 
     # --- FASE 1: EXTRACCIÓN DE DATOS (SECUENCIAL) ---
     print("\n--- FASE 1: EXTRACCIÓN DE DATOS ---")
@@ -690,12 +838,26 @@ def main(cedulas_a_procesar: List[str]) -> None:
 
     # Crear un mapa para poder actualizar los diccionarios originales
     pacientes_por_cedula = {p["CEDULA"]: p for p in pacientes_extraidos}
+    bedrock_client = get_aws_service(
+        service_name="bedrock-runtime", service_type="client", region="us-east-1"
+    )
 
     with ThreadPoolExecutor(max_workers=4) as executor:  # Puedes ajustar max_workers
         # Enviar todas las tareas al pool de hilos
+        # con modelo local
+        # future_to_cedula = {
+        #     executor.submit(
+        #         resumir_paciente, modelo_ia, tokenizador_ia, paciente_data
+        #     ): paciente_data["CEDULA"]
+        #     for paciente_data in pacientes_extraidos
+        # }
+        # con aws bedrock
         future_to_cedula = {
             executor.submit(
-                resumir_paciente, modelo_ia, tokenizador_ia, paciente_data
+                resumir_paciente_con_bedrock,
+                bedrock_client,
+                paciente_data,
+                AWS_BEDROCK_MODEL_ID,
             ): paciente_data["CEDULA"]
             for paciente_data in pacientes_extraidos
         }
