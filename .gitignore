@@ -8,6 +8,9 @@
 /examples/*.html
 /examples/*.json
 
+# word
+/informes_pacientes/
+
 # chromedriver
 /utils/
 

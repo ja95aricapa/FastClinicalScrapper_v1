@@ -23,6 +23,7 @@ Arquitectura:
 # 1. IMPORTACIONES
 # ==============================================================================
 import os
+import regex as re
 import time
 import json
 from typing import List, Dict, Any, Tuple, Optional, Union
@@ -757,18 +758,36 @@ def resumir_paciente_con_bedrock(
     datos_clave = preparar_datos_para_resumen(datos_paciente=datos_paciente)
     datos_json = json.dumps(datos_clave, ensure_ascii=False, indent=2)
 
-    prompt = (
-        "### Instrucción:\n"
-        "Eres un químico farmacéutico asistencial experto. A partir de los datos del paciente, "
-        "genera **únicamente** un objeto JSON con estas cuatro claves en español, sin texto adicional:\n"
-        "  - narrativa_intervencion: Narrativa de la sesión SFT, tono profesional.\n"
-        "  - sugerencia_horarios: Lista de sugerencias de horario y aceptación.\n"
-        "  - informacion_general: Información general y educación al paciente.\n"
-        "  - concepto_qf: Impresiones finales, adherencia cualitativa y recomendaciones.\n\n"
-        "### Datos del Paciente:\n"
-        f"{datos_json}\n\n"
-        "### Responde solo con el objeto JSON:"
-    )
+    prompt = f"""
+        Eres un químico farmacéutico asistencial experto. Tu tarea es analizar los datos clínicos de un paciente y generar un objeto JSON con cuatro claves específicas.
+
+        **Instrucciones estrictas:**
+        1.  Tu respuesta debe ser **únicamente el objeto JSON**.
+        2.  **No incluyas texto explicativo, introducciones, conclusiones ni la palabra "json" o ```markdown```.**
+        3.  La salida debe ser un JSON crudo que comience con `{{` y termine con `}}`.
+        4.  Usa indentación de 2 espacios para el formato del JSON.
+        5.  Si una modalidad es remota o no es presencial, el campo "sugerencia_horarios" debe ser una lista vacía `[]`.
+
+        **Datos Clínicos del Paciente:**
+        {datos_json}
+
+        Genera el objeto JSON con las siguientes cuatro claves:
+        1. **narrativa_intervencion**:
+        String que inicia con "Se realiza revisión del caso...", menciona modalidad (PRESENCIAL/NOTA DE SEGUIMIENTO),
+        fecha (YYYY-MM-DD) y nombre del QF (ej: "por QF Nombre Apellido"), contexto (EPP o llamada) y termina con "indicando que:".
+
+        2. **sugerencia_horarios**:
+        Lista de objetos {{ "hora": "HH:MM AM/PM", "actividad": "...", "aceptacion": "PACIENTE ACEPTA" }}
+        solo si la modalidad es PRESENCIAL. Si no, [].
+
+        3. **informacion_general**:
+        Párrafo de 2-3 oraciones reforzando adherencia, objetivo del TAR, mecanismo VIH-TAR, hábitos saludables,
+        uso de preservativo y derechos/deberes. Sin listas ni fechas.
+
+        4. **concepto_qf**:
+        String que inicia con "Acorde a la revisión de la trazabilidad del caso:" y termina con dos líneas:
+        "Adherencia: [Adherente (95-100%) / No Adherente]" y "Tolerancia: [Buena / ...]".[/INST]
+        """
     # Invocación Bedrock
     respuesta_texto = invocar_bedrock(
         cliente=cliente, modelo_id=model_id, prompt=prompt
@@ -777,20 +796,32 @@ def resumir_paciente_con_bedrock(
     # Extraer substring JSON entre primer { y último }
     resultado = {}
     try:
-        start = respuesta_texto.find("{")
-        end = respuesta_texto.rfind("}")
-        if start != -1 and end != -1 and end > start:
-            json_fragment = respuesta_texto[start : end + 1]
-            resultado = json.loads(json_fragment)
+        # Intenta buscar un bloque de código JSON explícito
+        json_match = re.search(r"```json\s*(\{.*?\})\s*```", respuesta_texto, re.DOTALL)
+        if json_match:
+            json_fragment = json_match.group(1)
         else:
-            raise ValueError("No se encontró JSON completo")
-    except Exception:
+            # Si no lo encuentra, busca el primer objeto JSON completo en el texto
+            start = respuesta_texto.find("{")
+            end = respuesta_texto.rfind("}")
+            if start != -1 and end != -1 and end > start:
+                json_fragment = respuesta_texto[start : end + 1]
+            else:
+                raise ValueError("No se encontró un JSON válido en la respuesta.")
+
+        resultado = json.loads(json_fragment)
+
+    except (json.JSONDecodeError, ValueError) as e:
+        print(
+            f"!!! ERROR al decodificar JSON para la cédula {datos_paciente['CEDULA']}: {e} !!!"
+        )
+        print(f"Respuesta recibida de la IA:\n---\n{respuesta_texto}\n---")
         # Fallback: todo en concepto_qf
         resultado = {
-            "narrativa_intervencion": "",
-            "sugerencia_horarios": "",
-            "informacion_general": "",
-            "concepto_qf": respuesta_texto.strip()[:max_chars],
+            "narrativa_intervencion": "Error en la generación de datos.",
+            "sugerencia_horarios": [],
+            "informacion_general": "Error en la generación de datos.",
+            "concepto_qf": f"Error al parsear la respuesta de la IA. Respuesta completa: {respuesta_texto.strip()[:max_chars]}",
         }
 
     # Recortar valores si son muy largos
