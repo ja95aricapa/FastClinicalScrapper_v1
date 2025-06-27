@@ -750,14 +750,31 @@ def invocar_bedrock(cliente, modelo_id: str, prompt: str) -> str:
 
 def resumir_paciente_con_bedrock(
     cliente: Any, datos_paciente: Dict[str, Any], model_id: str, max_chars: int = 2000
-) -> Tuple[str, str]:
+) -> Tuple[str, Dict[str, Any]]:
     """
-    Prepara el prompt y llama a invocar_bedrock para obtener el resumen.
-    """
-    # Preparar datos clave como antes
-    datos_clave = preparar_datos_para_resumen(datos_paciente=datos_paciente)
-    datos_json = json.dumps(datos_clave, ensure_ascii=False, indent=2)
+    Prepara los datos, invoca a Bedrock para generar campos narrativos y
+    fusiona los datos preparados con la respuesta de la IA en un único diccionario.
 
+    Args:
+        cliente (Any): El cliente de Bedrock.
+        datos_paciente (Dict[str, Any]): Los datos brutos extraídos del paciente.
+        model_id (str): El ID del modelo de Bedrock a usar.
+        max_chars (int): Límite de caracteres para los campos de texto.
+
+    Returns:
+        Tuple[str, Dict[str, Any]]: Una tupla con la cédula del paciente y un
+                                   diccionario que contiene TODOS los campos
+                                   (preparados y generados por IA) para actualizar
+                                   el registro del paciente.
+    """
+    cedula = datos_paciente["CEDULA"]
+    print(f"    -> Preparando y generando resumen para paciente {cedula}...")
+
+    # 1. Prepara los datos clave a partir de la data extraída
+    datos_preparados = preparar_datos_para_resumen(datos_paciente=datos_paciente)
+    datos_json = json.dumps(datos_preparados, ensure_ascii=False, indent=2)
+
+    # 2. Construye el prompt para la IA
     prompt = f"""
         Eres un químico farmacéutico asistencial experto. Tu tarea es analizar los datos clínicos de un paciente y generar un objeto JSON con cuatro claves específicas.
 
@@ -777,7 +794,7 @@ def resumir_paciente_con_bedrock(
         fecha (YYYY-MM-DD) y nombre del QF (ej: "por QF Nombre Apellido"), contexto (EPP o llamada) y termina con "indicando que:".
 
         2. **sugerencia_horarios**:
-        Lista de objetos {{ "hora": "HH:MM AM/PM", "actividad": "...", "aceptacion": "PACIENTE ACEPTA" }}
+        Lista de objetos {{"hora": "HH:MM AM/PM", "actividad": "...", "aceptacion": "PACIENTE ACEPTA"}}
         solo si la modalidad es PRESENCIAL. Si no, [].
 
         3. **informacion_general**:
@@ -786,51 +803,45 @@ def resumir_paciente_con_bedrock(
 
         4. **concepto_qf**:
         String que inicia con "Acorde a la revisión de la trazabilidad del caso:" y termina con dos líneas:
-        "Adherencia: [Adherente (95-100%) / No Adherente]" y "Tolerancia: [Buena / ...]".[/INST]
+        "Adherencia: [Adherente (95-100%) / No Adherente]" y "Tolerancia: [Buena / ...]".
         """
-    # Invocación Bedrock
-    respuesta_texto = invocar_bedrock(
-        cliente=cliente, modelo_id=model_id, prompt=prompt
-    )
 
-    # Extraer substring JSON entre primer { y último }
-    resultado = {}
+    # 3. Invoca el modelo de IA
+    campos_generados_por_ia = {}
     try:
-        # Intenta buscar un bloque de código JSON explícito
-        json_match = re.search(r"```json\s*(\{.*?\})\s*```", respuesta_texto, re.DOTALL)
-        if json_match:
-            json_fragment = json_match.group(1)
-        else:
-            # Si no lo encuentra, busca el primer objeto JSON completo en el texto
-            start = respuesta_texto.find("{")
-            end = respuesta_texto.rfind("}")
-            if start != -1 and end != -1 and end > start:
-                json_fragment = respuesta_texto[start : end + 1]
-            else:
-                raise ValueError("No se encontró un JSON válido en la respuesta.")
+        respuesta_texto = invocar_bedrock(
+            cliente=cliente, modelo_id=model_id, prompt=prompt
+        )
 
-        resultado = json.loads(json_fragment)
+        # Extraer substring JSON entre primer { y último } de forma segura
+        json_match = re.search(r"\{.*\}", respuesta_texto, re.DOTALL)
+        if not json_match:
+            raise ValueError("No se encontró un objeto JSON en la respuesta de la IA.")
+
+        json_fragment = json_match.group(0)
+        campos_generados_por_ia = json.loads(json_fragment)
 
     except (json.JSONDecodeError, ValueError) as e:
-        print(
-            f"!!! ERROR al decodificar JSON para la cédula {datos_paciente['CEDULA']}: {e} !!!"
-        )
+        print(f"!!! ERROR al decodificar JSON para la cédula {cedula}: {e} !!!")
         print(f"Respuesta recibida de la IA:\n---\n{respuesta_texto}\n---")
-        # Fallback: todo en concepto_qf
-        resultado = {
+        campos_generados_por_ia = {
             "narrativa_intervencion": "Error en la generación de datos.",
             "sugerencia_horarios": [],
             "informacion_general": "Error en la generación de datos.",
             "concepto_qf": f"Error al parsear la respuesta de la IA. Respuesta completa: {respuesta_texto.strip()[:max_chars]}",
         }
 
-    # Recortar valores si son muy largos
-    for clave in resultado:
-        if isinstance(resultado[clave], str) and len(resultado[clave]) > max_chars:
-            resultado[clave] = resultado[clave][:max_chars]
+    # 4. Fusionar los datos preparados con los generados por la IA.
+    # Los datos de la IA (campos_generados_por_ia) sobreescribirán cualquier clave
+    # que pudiera tener el mismo nombre en datos_preparados.
+    datos_actualizados = {**datos_preparados, **campos_generados_por_ia}
 
-    # Devolver la cédula y el dict de campos
-    return datos_paciente["CEDULA"], resultado
+    # Recortar valores si son muy largos
+    for clave, valor in datos_actualizados.items():
+        if isinstance(valor, str) and len(valor) > max_chars:
+            datos_actualizados[clave] = valor[:max_chars]
+
+    return cedula, datos_actualizados
 
 
 # ==============================================================================
@@ -888,7 +899,9 @@ def generar_informes_word(pacientes: list, template_path: str, output_dir: str):
             "tolerancia_test": p.get("tolerancia_test", ""),
         }
         tpl.render(contexto)
-        out_path = os.path.join(output_dir, f"{p['CEDULA']}.docx")
+        out_path = os.path.join(
+            output_dir, f"{p['NOMBRE_PACIENTE']}_{p["CEDULA"]}.docx"
+        )
         tpl.save(out_path)
         print(f"Informe generado: {out_path}")
 
@@ -896,14 +909,9 @@ def generar_informes_word(pacientes: list, template_path: str, output_dir: str):
 # ==============================================================================
 # 6. FUNCIÓN PRINCIPAL DE ORQUESTACIÓN
 # ==============================================================================
-
-
 def main(cedulas_a_procesar: List[str]) -> None:
     """
     Orquesta todo el proceso de extracción y resumen de datos de pacientes.
-
-    Args:
-        cedulas_a_procesar (List[str]): Una lista de las cédulas a procesar.
     """
     start_total_time = time.monotonic()
     print("======================================================")
@@ -924,10 +932,6 @@ def main(cedulas_a_procesar: List[str]) -> None:
             FASTCLINICA_URL,
             USER,
             PASS,
-            MODEL_ID,
-            AWS_KEY_ID,
-            AWS_SECRET_KEY,
-            AWS_REGION,
             AWS_BEDROCK_MODEL_ID,
         ]
     ):
@@ -935,8 +939,6 @@ def main(cedulas_a_procesar: List[str]) -> None:
             "\n!!! ERROR CRÍTICO: Asegúrate de que las variables de entorno estén definidas en .env !!!"
         )
         return
-
-    modelo_ia, tokenizador_ia = cargar_modelo_ia(model_id=MODEL_ID)
 
     # --- FASE 1: EXTRACCIÓN DE DATOS (SECUENCIAL) ---
     print("\n--- FASE 1: EXTRACCIÓN DE DATOS ---")
@@ -949,46 +951,52 @@ def main(cedulas_a_procesar: List[str]) -> None:
             print(
                 f"\n--- Procesando paciente {i+1}/{len(cedulas_a_procesar)} (Cédula: {cedula}) ---"
             )
-            buscar_paciente(driver=driver, cedula=cedula)
-            # Extraer nombre completo del paciente
-            soup_general = BeautifulSoup(driver.page_source, "html.parser")
-            h1_el = soup_general.find("h1", class_="filament-header-heading")
-            nombre_completo = (
-                h1_el.get_text(strip=True).replace(f"Editar CC-{cedula}", "").strip()
-                if h1_el
-                else "No encontrado"
-            )
-            # Inicializar estructura de datos para este paciente
-            datos_paciente = {
-                "CEDULA": cedula,
-                "NOMBRE_PACIENTE": nombre_completo,
-                "historia_clinica": {"medico": [], "quimico_farmaceutico": []},
-                "plan_de_manejo": {"ordenes_de_servicio": [], "formulas_medicas": []},
-            }
-            datos_paciente = capturar_y_procesar_historia(
-                driver=driver, datos_paciente=datos_paciente
-            )
-            datos_paciente = procesar_plan_de_manejo(
-                driver=driver, datos_paciente=datos_paciente
-            )
-            pacientes_extraidos.append(datos_paciente)
-            print(f"--- Finalizada la extracción para el paciente {cedula}. ---")
+            try:
+                buscar_paciente(driver=driver, cedula=cedula)
+                soup_general = BeautifulSoup(driver.page_source, "html.parser")
+                h1_el = soup_general.find("h1", class_="filament-header-heading")
+                nombre_completo = (
+                    h1_el.get_text(strip=True)
+                    .replace(f"Editar CC-{cedula}", "")
+                    .strip()
+                    if h1_el
+                    else "No encontrado"
+                )
+                datos_paciente = {
+                    "CEDULA": cedula,
+                    "NOMBRE_PACIENTE": nombre_completo,
+                    "historia_clinica": {"medico": [], "quimico_farmaceutico": []},
+                    "plan_de_manejo": {
+                        "ordenes_de_servicio": [],
+                        "formulas_medicas": [],
+                    },
+                }
+                datos_paciente = capturar_y_procesar_historia(
+                    driver=driver, datos_paciente=datos_paciente
+                )
+                datos_paciente = procesar_plan_de_manejo(
+                    driver=driver, datos_paciente=datos_paciente
+                )
+                pacientes_extraidos.append(datos_paciente)
+                print(f"--- Finalizada la extracción para el paciente {cedula}. ---")
 
-            # Si no es el último paciente de la lista, vuelve al escritorio para reiniciar el estado.
-            # Esto previene errores de estado viciado en aplicaciones SPA.
-            if i < len(cedulas_a_procesar) - 1:
-                print(
-                    "\n-> Volviendo al escritorio para reiniciar el estado antes del siguiente paciente..."
-                )
-                driver.get(f"{FASTCLINICA_URL}")
-                # Esperamos a que el encabezado del escritorio esté visible para confirmar la navegación.
-                wait = WebDriverWait(driver, 20)
-                wait.until(
-                    EC.presence_of_element_located(
-                        (By.XPATH, "//h1[contains(text(), 'Escritorio')]")
+                if i < len(cedulas_a_procesar) - 1:
+                    print("\n-> Volviendo al escritorio para reiniciar el estado...")
+                    driver.get(f"{FASTCLINICA_URL}")
+                    wait = WebDriverWait(driver, 20)
+                    wait.until(
+                        EC.presence_of_element_located(
+                            (By.XPATH, "//h1[contains(text(), 'Escritorio')]")
+                        )
                     )
+            except Exception as e_paciente:
+                print(
+                    f"!!! ERROR PROCESANDO PACIENTE {cedula}: {e_paciente}. Saltando al siguiente. !!!"
                 )
-                print("-> Estado reiniciado en el escritorio.")
+                driver.get(
+                    f"{FASTCLINICA_URL}"
+                )  # Volver a la página de inicio para reintentar con el siguiente
+                continue
 
     except Exception as e:
         print(f"\n!!! ERROR CRÍTICO DURANTE EL SCRAPING: {type(e).__name__} - {e} !!!")
@@ -997,7 +1005,6 @@ def main(cedulas_a_procesar: List[str]) -> None:
         driver.save_screenshot(screenshot_path)
         print(f"-> Screenshot de emergencia guardado en: {screenshot_path}")
     finally:
-        # Asegurarse de que el driver se cierra siempre al final de la extracción
         if "driver" in locals() and driver:
             driver.quit()
             print("\n-> WebDriver cerrado de forma segura.")
@@ -1008,62 +1015,49 @@ def main(cedulas_a_procesar: List[str]) -> None:
         f"\n--- FIN FASE 1: Tiempo total de extracción: {duration_scraping:.2f} segundos ---"
     )
 
-    # --- FASE 2: RESUMEN CON IA (EN PARALELO) ---
     if not pacientes_extraidos:
         print("\nNo se extrajeron datos de ningún paciente. Finalizando proceso.")
         return
 
-    print("\n\n--- FASE 2: RESUMEN CON INTELIGENCIA ARTIFICIAL (EN PARALELO) ---")
+    # --- FASE 2: RESUMEN CON IA (SECUENCIAL) ---
+    print("\n\n--- FASE 2: RESUMEN CON INTELIGENCIA ARTIFICIAL (SECUENCIAL) ---")
     start_summarization_time = time.monotonic()
 
-    # Crear un mapa para poder actualizar los diccionarios originales
     pacientes_por_cedula = {p["CEDULA"]: p for p in pacientes_extraidos}
     bedrock_client = get_aws_service(
         service_name="bedrock-runtime", service_type="client", region="us-east-1"
     )
 
-    with ThreadPoolExecutor(max_workers=8) as executor:  # Puedes ajustar max_workers
-        # Enviar todas las tareas al pool de hilos
-        # con modelo local
-        # future_to_cedula = {
-        #     executor.submit(
-        #         resumir_paciente, modelo_ia, tokenizador_ia, paciente_data
-        #     ): paciente_data["CEDULA"]
-        #     for paciente_data in pacientes_extraidos
-        # }
-        # con aws bedrock
-        future_to_cedula = {
-            executor.submit(
-                resumir_paciente_con_bedrock,
-                bedrock_client,
-                paciente_data,
-                AWS_BEDROCK_MODEL_ID,
-            ): paciente_data["CEDULA"]
-            for paciente_data in pacientes_extraidos
-        }
+    for paciente_data in pacientes_extraidos:
+        cedula_original = paciente_data["CEDULA"]
+        try:
+            # La función ahora devuelve todos los campos necesarios (preparados + IA)
+            cedula_res, todos_los_campos_actualizados = resumir_paciente_con_bedrock(
+                cliente=bedrock_client,
+                datos_paciente=paciente_data,
+                model_id=AWS_BEDROCK_MODEL_ID,
+            )
 
-        # Procesar los resultados a medida que se completan
-        for future in as_completed(future_to_cedula):
-            cedula_original = future_to_cedula[future]
-            try:
-                cedula_res, campos = future.result()
-                # Guardar cada campo en el diccionario del paciente
-                paciente = pacientes_por_cedula[cedula_res]
-                paciente["narrativa_intervencion"] = campos.get(
-                    "narrativa_intervencion", ""
-                )
-                paciente["sugerencia_horarios"] = campos.get("sugerencia_horarios", "")
-                paciente["informacion_general"] = campos.get("informacion_general", "")
-                paciente["concepto_qf"] = campos.get("concepto_qf", "")
-            except Exception as e:
-                print(f"!!! ERROR en el hilo para la cédula {cedula_original}: {e} !!!")
-                paciente = pacientes_por_cedula[cedula_original]
-                paciente["concepto_qf"] = "Error al generar campos con IA."
+            # Actualiza el diccionario del paciente con el diccionario fusionado
+            paciente_a_actualizar = pacientes_por_cedula[cedula_res]
+            paciente_a_actualizar.update(todos_los_campos_actualizados)
+
+            print(f" -> Resumen para {cedula_original} completado y datos fusionados.")
+
+        except Exception as e:
+            print(
+                f"!!! ERROR en el procesamiento síncrono para la cédula {cedula_original}: {e} !!!"
+            )
+            # Opcional: añadir un estado de error al paciente
+            paciente_a_actualizar = pacientes_por_cedula[cedula_original]
+            paciente_a_actualizar["concepto_qf"] = (
+                "FALLO TOTAL: Error al generar y fusionar campos con IA."
+            )
 
     end_summarization_time = time.monotonic()
     duration_summarization = end_summarization_time - start_summarization_time
     print(
-        f"\n--- FIN FASE 2: Tiempo total de resumen en paralelo: {duration_summarization:.2f} segundos ---"
+        f"\n--- FIN FASE 2: Tiempo total de resumen secuencial: {duration_summarization:.2f} segundos ---"
     )
 
     # --- FASE 3: ALMACENAMIENTO DE RESULTADOS ---
@@ -1072,19 +1066,20 @@ def main(cedulas_a_procesar: List[str]) -> None:
     os.makedirs("examples", exist_ok=True)
     output_path = os.path.join("examples", output_filename)
     with open(output_path, "w", encoding="utf-8") as f:
-        # Usamos los valores del diccionario actualizado, que es la lista original de diccionarios
-        json.dump(list(pacientes_por_cedula.values()), f, ensure_ascii=False, indent=4)
+        # Guardamos la lista final de diccionarios, que ahora están completos
+        json.dump(pacientes_extraidos, f, ensure_ascii=False, indent=4)
     print(f"\nResultados finales guardados en: '{output_path}'")
 
     # --- FASE 4: GENERACIÓN DE INFORMES EN WORD ---
-    # Llamada a generación de Word
+    print("\n\n--- FASE 4: GENERACIÓN DE INFORMES EN WORD ---")
     template = "utils/plantilla_base_v1.docx"
     salida_docs = "informes_pacientes"
-    generar_informes_word(list(pacientes_por_cedula.values()), template, salida_docs)
+    # La lista 'pacientes_extraidos' ya contiene todos los datos completos.
+    generar_informes_word(pacientes_extraidos, template, salida_docs)
 
     end_total_time = time.monotonic()
     duration_total = end_total_time - start_total_time
-    print("======================================================")
+    print("\n======================================================")
     print(
         f"PROCESO COMPLETADO. TIEMPO TOTAL DE EJECUCIÓN: {duration_total:.2f} segundos"
     )
@@ -1092,14 +1087,12 @@ def main(cedulas_a_procesar: List[str]) -> None:
 
 
 # ==============================================================================
-# 6. PUNTO DE ENTRADA DEL SCRIPT
+# 7. PUNTO DE ENTRADA DEL SCRIPT
 # ==============================================================================
 if __name__ == "__main__":
     lista_de_cedulas = [
         "1107088958",
         "32271898",
         # "1026553146",
-        # "8168228",
-        # "1046903180",
     ]
     main(cedulas_a_procesar=lista_de_cedulas)
