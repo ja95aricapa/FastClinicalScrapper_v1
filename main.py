@@ -559,18 +559,54 @@ def preparar_datos_para_resumen(datos_paciente: Dict[str, Any]) -> Dict[str, Any
         Dict[str, Any]: Un diccionario limpio y conciso, optimizado para el modelo de IA.
     """
     datos_clave = {
-        "nombre_paciente": datos_paciente.get("NOMBRE_PACIENTE"),
-        "diagnostico_principal": None,
-        "datos_relevantes_ultima_consulta_medica": {},
-        "concepto_clave_farmaceutico": {},
-        "tratamiento_actual_formulado": [],
-        # claves adicionales para la QF:
-        "concepto_qf": "",
-        "narrativa_intervencion": "",
-        "sugerencia_horarios": [],
-        "informacion_general": "",
+        # Datos generales
+        "nombre_paciente": datos_paciente.get("NOMBRE_PACIENTE", ""),
+        "documento_id": datos_paciente.get("CEDULA", ""),
+        "tipo_documento_id": "CC",
+        "fecha_impresion": date.today().strftime(
+            "%Y-%m-%d"
+        ),  # ver como se saca del encuentro
+        # Médico
+        "fecha_diagnostico": "",
+        "estadio_clinico": "",
+        "antecedentes_patologicos": "",
+        "antecedentes_farmacologicos": "",
+        "antecedentes_quirurgicos": "",
+        # Farmacéutico / QF
+        "lista_medicamentos": [],
         "tipo_intervencion": "",
+        #### insumos para bedrock
+        "medico_enfermedad_actual": "",
+        "medico_resumen_e_intervenciones": "",
+        "quimico_seguimiento_farmacoterapeutico": "",
+        #### extraer con bedrock
+        "fecha_impresion": "",
         "modalidad_intervencion": "",
+        "diagnostico_principal": "",
+        "antecedentes_actuales": "",
+        "paciente_sexo": "",
+        "paciente_edad": "",
+        "otros_medicamentos": "",
+        "alergias": "",
+        "habitos_alimenticios": "",
+        "habitos_toxicos": "",
+        "hospitalizaciones_recientes": "",
+        "fecha_paraclinico": "",
+        "cv_paraclinico": "",
+        "cd4_paraclinico": "",
+        "profilaxis_antibiotica": "",
+        "metas_terapeuticas": "",
+        "medicamento_necesario": "",
+        "medicamento_efectivo": "",
+        "medicamento_seguro": "",
+        "interacciones": "",
+        "genotipo": "",
+        "fecha_dispensacion": "",
+        "modalidad_dispensacion": "",
+        "adherencia_test": "",
+        "tolerancia_test": "",
+        "concepto_qf": "",
+        "sugerencia_horarios": [],
     }
     # Extraer del encuentro médico más reciente
     if datos_paciente["historia_clinica"]["medico"]:
@@ -582,8 +618,6 @@ def preparar_datos_para_resumen(datos_paciente: Dict[str, Any]) -> Dict[str, Any
         mod_med = ultimo_med.get("datos_del_modal", {})
         datos_clave.update(
             {
-                "paciente_sexo": mod_med.get("Datos Generales", {}).get("Sexo", ""),
-                "paciente_edad": mod_med.get("Datos Generales", {}).get("Edad", ""),
                 "fecha_diagnostico": mod_med.get("Enfermedad Actual", {}).get(
                     "Fecha de diagnóstico", ""
                 ),
@@ -593,36 +627,21 @@ def preparar_datos_para_resumen(datos_paciente: Dict[str, Any]) -> Dict[str, Any
                 "antecedentes_patologicos": mod_med.get("Antecedentes Médicos", {}).get(
                     "Patológicos", ""
                 ),
-                "antecedentes_actuales": mod_med.get("Antecedentes Médicos", {}).get(
-                    "Actuales", ""
+                "antecedentes_farmacologicos": mod_med.get(
+                    "Antecedentes Médicos", {}
+                ).get("Farmacológicos", ""),
+                "antecedentes_quirurgicos": mod_med.get("Antecedentes Médicos", {}).get(
+                    "Quirúrgicos", ""
                 ),
-                "otros_medicamentos": mod_med.get("Otros Medicamentos", {}).get(
-                    "Descripción", "No refiere"
+                "medico_enfermedad_actual": mod_med.get("Enfermedad Actual", {}).get(
+                    "Enfermedad Actual", ""
                 ),
-                "alergias": mod_med.get("Alergias", {}).get(
-                    "Descripción", "No refiere"
-                ),
-                "habitos_alimenticios": mod_med.get("Hábitos Alimenticios", {}).get(
-                    "Descripción", "Normales"
-                ),
-                "habitos_toxicos": mod_med.get("Hábitos Toxicológicos", {}).get(
-                    "Descripción", "Niega"
-                ),
-                "hospitalizaciones_recientes": mod_med.get("Hospitalizaciones", {}).get(
-                    "Recientes", "No refiere"
-                ),
+                "medico_resumen_e_intervenciones": mod_med.get(
+                    "Resumen e Intervenciones", {}
+                ).get("Acciones", ""),
             }
         )
-        # Últimos paraclínicos
-        para = mod_med.get("Últimos Paraclínicos", {})
-        datos_clave.update(
-            {
-                "fecha_paraclinico": para.get("Fecha", ""),
-                "cv_paraclinico": para.get("CV", ""),
-                "cd4_paraclinico": para.get("CD4+", ""),
-            }
-        )
-    # Datos del farmacéutico
+    # Extraer del encuentro farmacéutico más reciente
     if datos_paciente["historia_clinica"]["quimico_farmaceutico"]:
         ultimo_qf = sorted(
             datos_paciente["historia_clinica"]["quimico_farmaceutico"],
@@ -637,20 +656,18 @@ def preparar_datos_para_resumen(datos_paciente: Dict[str, Any]) -> Dict[str, Any
                     f["medicamento"]
                     for f in datos_paciente["plan_de_manejo"]["formulas_medicas"]
                 ],
-                "profilaxis_antibiotica": pf.get(
-                    "Profilaxis Antibiótica", "No refiere"
+                "tipo_intervencion": mod_qf.get(
+                    "Seguimiento Farmacoterapéutico", {}
+                ).get("Tipo de intervención", "PRESENCIAL"),
+                "modalidad_intervencion": mod_qf.get(
+                    "Seguimiento Farmacoterapéutico", {}
+                ).get(
+                    "Modalidad de intervención",
+                    date.today().strftime("%Y-%m-%d"),
                 ),
-                "metas_terapeuticas": pf.get("Metas Terapéuticas", ""),
-                "medicamento_necesario": pf.get("¿Medicamento NECESARIO?", ""),
-                "medicamento_efectivo": pf.get("¿Medicamento EFECTIVO?", ""),
-                "medicamento_seguro": pf.get("¿Medicamento SEGURO?", ""),
-                "interacciones": pf.get("Interacciones", "Ninguna"),
-                "genotipo": pf.get("Genotipo", "N/A"),
-                # SMAQ
-                "fecha_dispensacion": pf.get("Fecha", ""),
-                "modalidad_dispensacion": pf.get("Modalidad", ""),
-                "adherencia_test": pf.get("Resultado de Adherencia Cualitativo", ""),
-                "tolerancia_test": pf.get("Tolerancia", ""),
+                "quimico_seguimiento_farmacoterapeutico": mod_qf.get(
+                    "Seguimiento Farmacoterapéutico", {}
+                ).get("Descripción de la intervención", ""),
             }
         )
     return datos_clave
@@ -719,7 +736,7 @@ def resumir_paciente(
 
 
 ### AWS ###
-def invocar_bedrock(cliente, modelo_id: str, prompt: str) -> str:
+def invocar_bedrock(cliente, model_id: str, prompt: str) -> str:
     """
     Invoca un foundation model en Bedrock (Mistral / Mixtral / Titan) y devuelve el texto generado.
     """
@@ -734,7 +751,7 @@ def invocar_bedrock(cliente, modelo_id: str, prompt: str) -> str:
 
     # Llama al InvokeModel con contentType y accept adecuados
     resp = cliente.invoke_model(
-        modelId=modelo_id,
+        modelId=model_id,
         contentType="application/json",
         accept="application/json",
         body=json.dumps(body),
@@ -749,68 +766,89 @@ def invocar_bedrock(cliente, modelo_id: str, prompt: str) -> str:
 
 
 def resumir_paciente_con_bedrock(
-    cliente: Any, datos_paciente: Dict[str, Any], model_id: str, max_chars: int = 2000
+    cliente: Any, datos_paciente: Dict[str, Any], model_id: str
 ) -> Tuple[str, Dict[str, Any]]:
     """
-    Prepara los datos, invoca a Bedrock para generar campos narrativos y
-    fusiona los datos preparados con la respuesta de la IA en un único diccionario.
+    Prepara los datos, invoca a Bedrock para rellenar campos vacíos y
+    devuelve el diccionario completo y enriquecido.
 
     Args:
         cliente (Any): El cliente de Bedrock.
         datos_paciente (Dict[str, Any]): Los datos brutos extraídos del paciente.
         model_id (str): El ID del modelo de Bedrock a usar.
-        max_chars (int): Límite de caracteres para los campos de texto.
 
     Returns:
         Tuple[str, Dict[str, Any]]: Una tupla con la cédula del paciente y un
-                                   diccionario que contiene TODOS los campos
-                                   (preparados y generados por IA) para actualizar
-                                   el registro del paciente.
+                                     diccionario que contiene TODOS los campos
+                                     (preparados y rellenados por IA).
     """
     cedula = datos_paciente["CEDULA"]
-    print(f"    -> Preparando y generando resumen para paciente {cedula}...")
+    print(f"  -> [Bedrock] Iniciando procesamiento para paciente {cedula}...")
 
-    # 1. Prepara los datos clave a partir de la data extraída
+    # 1. Prepara los datos clave a partir de la data extraída (con campos vacíos)
     datos_preparados = preparar_datos_para_resumen(datos_paciente=datos_paciente)
-    datos_json = json.dumps(datos_preparados, ensure_ascii=False, indent=2)
+    datos_json_input = json.dumps(datos_preparados, ensure_ascii=False, indent=4)
 
-    # 2. Construye el prompt para la IA
-    prompt = f"""
-        Eres un químico farmacéutico asistencial experto. Tu tarea es analizar los datos clínicos de un paciente y generar un objeto JSON con cuatro claves específicas.
+    # 2. ## AJUSTE 1: PROMPT OPTIMIZADO ##
+    # Ahora le pedimos a la IA que devuelva solo los campos que necesita rellenar.
+    # Esto hace que la respuesta sea mucho más corta y evita que se trunque.
+    prompt = f"""Eres un Químico Farmacéutico experto en el análisis de datos clínicos. A continuación, te proporciono un objeto JSON con los datos de un paciente. Varios campos están vacíos (`''` o `[]`).
 
-        **Instrucciones estrictas:**
-        1.  Tu respuesta debe ser **únicamente el objeto JSON**.
-        2.  **No incluyas texto explicativo, introducciones, conclusiones ni la palabra "json" o ```markdown```.**
-        3.  La salida debe ser un JSON crudo que comience con `{{` y termine con `}}`.
-        4.  Usa indentación de 2 espacios para el formato del JSON.
-        5.  Si una modalidad es remota o no es presencial, el campo "sugerencia_horarios" debe ser una lista vacía `[]`.
+    **Tu tarea principal es:**
+    Analiza la información textual densa en `quimico_seguimiento_farmacoterapeutico`, `medico_resumen_e_intervenciones` y `medico_enfermedad_actual`. Con base en ese análisis, extrae y deduce la información necesaria para rellenar los campos vacíos.
+    ** campos a rellenar: **
+    - 'fecha_impresion' -> esta debe ser la fecha del ultimo encuentro con el quimico farmaceutico, o en caso que no tenga, la fecha de hoy, y debe ser en formato `DD/MM/YYYY`.
+    - 'fecha_dispensacion' -> la misma fecha que la de impresion.
+    - 'modalidad_dispensacion' -> la misma fecha que la de impresion.
+    - 'fecha_diagnostico'
+    - 'estadio_clinico'
+    - 'tipo_intervencion'
+    - 'modalidad_intervencion'
+    - 'diagnostico_principal'
+    - 'antecedentes_actuales'
+    - 'paciente_sexo'
+    - 'paciente_edad'
+    - 'otros_medicamentos'
+    - 'alergias'
+    - 'habitos_alimenticios'
+    - 'habitos_toxicos'
+    - 'hospitalizaciones_recientes'
+    - 'fecha_paraclinico'
+    - 'cv_paraclinico'
+    - 'cd4_paraclinico'
+    - 'profilaxis_antibiotica'
+    - 'metas_terapeuticas'
+    - 'medicamento_necesario' -> este debe decir Sí o No, si la TAR permite mejorar las condiciones de vida de los pacientes, así como disminuir las complicaciones durante la enfermedad y reducir la mortalidad o no.
+    - 'medicamento_efectivo' -> este debe decir Sí o No, si el paciente esta dentro de metas terapéuticaso no y si su CV es indetectable o no.
+    - 'medicamento_seguro' -> este debe decir Sí o No, si paciente refiere inconvenientes con la TAR o no. Si RAMs/PRMs/PRUMs o no.
+    - 'interacciones' -> este debe decir si el paciente refiere interacciones de mayor relevancia clinica o no y cuales en caso que sí.
+    - 'genotipo'
+    - 'adherencia_test'
+    - 'tolerancia_test'
+    - 'concepto_qf'
+    - 'sugerencia_horarios'
+    **Reglas estrictas para la salida:**
+    1.  Tu respuesta debe ser un objeto JSON que contenga **ÚNICAMENTE** los campos que rellenaste. Exclusivamente los que he listado en ** campos a rellenar: ** y no debe faltar ninguno, todos deben estar debidamente rellenos.
+    2.  **No incluyas texto explicativo, introducciones, conclusiones, ni la palabra "json" o ```markdown```.** Tu respuesta debe ser un JSON crudo, válido, que comience con `{{` y termine con `}}`.
+    3.  Mantén un estilo de escritura clínico y profesional.
+    4.  si un campo se hace referencia a fechas, siempre busca la mas reciente, e intenta manejar este formato de fecha: `DD/MM/YYYY`.
+    5.  El orden de preferencia sobre lo que vas a leer y usar de los campso informativos es esta: 1)`quimico_seguimiento_farmacoterapeutico`, 2)"medico_resumen_e_intervenciones" y 3)`medico_enfermedad_actual` para rellenar los campos vacíos. Si no puedes inferir con base a esos campos, déjalo vacío (`""`) o como una lista vacía (`[]`).
+    6.  Si no encuentras información para un campo, puedes omitirlo de tu respuesta o asignarle el valor "No se encuentra información".
 
-        **Datos Clínicos del Paciente:**
-        {datos_json}
+    **Objeto JSON de entrada para analizar:**
+    {datos_json_input}
 
-        Genera el objeto JSON con las siguientes cuatro claves:
-        1. **narrativa_intervencion**:
-        String que inicia con "Se realiza revisión del caso...", menciona modalidad (PRESENCIAL/NOTA DE SEGUIMIENTO),
-        fecha (YYYY-MM-DD) y nombre del QF (ej: "por QF Nombre Apellido"), contexto (EPP o llamada) y termina con "indicando que:".
-
-        2. **sugerencia_horarios**:
-        Lista de objetos {{"hora": "HH:MM AM/PM", "actividad": "...", "aceptacion": "PACIENTE ACEPTA"}}
-        solo si la modalidad es PRESENCIAL. Si no, [].
-
-        3. **informacion_general**:
-        Párrafo de 2-3 oraciones reforzando adherencia, objetivo del TAR, mecanismo VIH-TAR, hábitos saludables,
-        uso de preservativo y derechos/deberes. Sin listas ni fechas.
-
-        4. **concepto_qf**:
-        String que inicia con "Acorde a la revisión de la trazabilidad del caso:" y termina con dos líneas:
-        "Adherencia: [Adherente (95-100%) / No Adherente]" y "Tolerancia: [Buena / ...]".
-        """
+    **Tu Salida (solo el JSON con los campos nuevos y sus valores):**
+    """
 
     # 3. Invoca el modelo de IA
-    campos_generados_por_ia = {}
+    datos_finales = (
+        datos_preparados.copy()
+    )  # Empezamos con una copia de los datos originales
+    respuesta_texto = ""
     try:
         respuesta_texto = invocar_bedrock(
-            cliente=cliente, modelo_id=model_id, prompt=prompt
+            cliente=cliente, model_id=model_id, prompt=prompt
         )
 
         # Extraer substring JSON entre primer { y último } de forma segura
@@ -819,29 +857,31 @@ def resumir_paciente_con_bedrock(
             raise ValueError("No se encontró un objeto JSON en la respuesta de la IA.")
 
         json_fragment = json_match.group(0)
-        campos_generados_por_ia = json.loads(json_fragment)
+
+        # Parseamos el JSON que ahora es mucho más pequeño
+        datos_rellenados_por_ia = json.loads(json_fragment)
+
+        # ## AJUSTE 2: FUSIONAR LOS DICCIONARIOS ##
+        # Actualizamos nuestro diccionario original con los datos recibidos de la IA.
+        datos_finales.update(datos_rellenados_por_ia)
+
+        print(
+            f"  -> [Bedrock] Datos para {cedula} procesados y rellenados correctamente."
+        )
 
     except (json.JSONDecodeError, ValueError) as e:
-        print(f"!!! ERROR al decodificar JSON para la cédula {cedula}: {e} !!!")
+        print(
+            f"!!! ERROR al decodificar JSON de Bedrock para la cédula {cedula}: {e} !!!"
+        )
         print(f"Respuesta recibida de la IA:\n---\n{respuesta_texto}\n---")
-        campos_generados_por_ia = {
-            "narrativa_intervencion": "Error en la generación de datos.",
-            "sugerencia_horarios": [],
-            "informacion_general": "Error en la generación de datos.",
-            "concepto_qf": f"Error al parsear la respuesta de la IA. Respuesta completa: {respuesta_texto.strip()[:max_chars]}",
-        }
+        # El fallback sigue siendo útil. datos_finales ya contiene los datos originales.
+        datos_finales["concepto_qf"] = (
+            f"ERROR CRÍTICO: No se pudo generar el resumen con IA. Error: {e}. "
+            f"Respuesta recibida: {respuesta_texto[:500]}"
+        )
 
-    # 4. Fusionar los datos preparados con los generados por la IA.
-    # Los datos de la IA (campos_generados_por_ia) sobreescribirán cualquier clave
-    # que pudiera tener el mismo nombre en datos_preparados.
-    datos_actualizados = {**datos_preparados, **campos_generados_por_ia}
-
-    # Recortar valores si son muy largos
-    for clave, valor in datos_actualizados.items():
-        if isinstance(valor, str) and len(valor) > max_chars:
-            datos_actualizados[clave] = valor[:max_chars]
-
-    return cedula, datos_actualizados
+    # 4. Devuelve el diccionario completo y fusionado
+    return cedula, datos_finales
 
 
 # ==============================================================================
@@ -857,17 +897,20 @@ def generar_informes_word(pacientes: list, template_path: str, output_dir: str):
     for p in pacientes:
         tpl = DocxTemplate(template_path)
         # Construir contexto plano para docxtpl
+        # El diccionario 'p' ahora contiene todos los campos rellenados por la IA.
         contexto = {
-            "paciente_nombre": p["NOMBRE_PACIENTE"],
-            "tipo_documento_id": "CC",
-            "documento_id": p["CEDULA"],
-            "fecha_impresion": date.today().strftime("%d/%m/%Y"),
+            "paciente_nombre": p.get("nombre_paciente", ""),
+            "tipo_documento_id": p.get("tipo_documento_id", "CC"),
+            "documento_id": p.get("documento_id", ""),
+            "fecha_impresion": p.get("fecha_impresion", ""),
+            "modalidad_intervencion": p.get("modalidad_intervencion", ""),
             "paciente_sexo": p.get("paciente_sexo", ""),
             "paciente_edad": p.get("paciente_edad", ""),
             "fecha_diagnostico": p.get("fecha_diagnostico", ""),
             "estadio_clinico": p.get("estadio_clinico", ""),
             "antecedentes_patologicos": p.get("antecedentes_patologicos", ""),
             "antecedentes_actuales": p.get("antecedentes_actuales", ""),
+            "antecedentes_farmacologicos": p.get("antecedentes_farmacologicos", ""),
             "otros_medicamentos": p.get("otros_medicamentos", ""),
             "alergias": p.get("alergias", ""),
             "habitos_alimenticios": p.get("habitos_alimenticios", ""),
@@ -881,15 +924,9 @@ def generar_informes_word(pacientes: list, template_path: str, output_dir: str):
             "medicamento_seguro": p.get("medicamento_seguro", ""),
             "interacciones": p.get("interacciones", ""),
             "genotipo": p.get("genotipo", ""),
-            "narrativa_intervencion": p.get("narrativa_intervencion", ""),
-            "sugerencia_horarios": "\n".join(
-                f"{h.get('hora')}: {h.get('aceptacion','')}"
-                for h in p.get("sugerencia_horarios", [])
-            ),
-            "informacion_general": p.get("informacion_general", ""),
-            "concepto_qf": p.get("concepto_qf", ""),
             "tipo_intervencion": p.get("tipo_intervencion", ""),
             "modalidad_intervencion": p.get("modalidad_intervencion", ""),
+            "sugerencia_horarios": "\n".join(p.get("sugerencia_horarios", [])),
             "fecha_paraclinico": p.get("fecha_paraclinico", ""),
             "cv_paraclinico": p.get("cv_paraclinico", ""),
             "cd4_paraclinico": p.get("cd4_paraclinico", ""),
@@ -897,10 +934,14 @@ def generar_informes_word(pacientes: list, template_path: str, output_dir: str):
             "modalidad_dispensacion": p.get("modalidad_dispensacion", ""),
             "adherencia_test": p.get("adherencia_test", ""),
             "tolerancia_test": p.get("tolerancia_test", ""),
+            "concepto_qf": p.get("concepto_qf", ""),
+            "adherencia": p.get("adherencia_test", ""),
+            "tolerancia": p.get("tolerancia_test", ""),
         }
         tpl.render(contexto)
         out_path = os.path.join(
-            output_dir, f"{p['NOMBRE_PACIENTE']}_{p["CEDULA"]}.docx"
+            output_dir,
+            f"{p.get('nombre_paciente', 'SIN_NOMBRE')}_{p.get('documento_id', 'SIN_CEDULA')}.docx",
         )
         tpl.save(out_path)
         print(f"Informe generado: {out_path}")
@@ -1075,6 +1116,7 @@ def main(cedulas_a_procesar: List[str]) -> None:
     template = "utils/plantilla_base_v1.docx"
     salida_docs = "informes_pacientes"
     # La lista 'pacientes_extraidos' ya contiene todos los datos completos.
+    # pacientes_extraidos = []
     generar_informes_word(pacientes_extraidos, template, salida_docs)
 
     end_total_time = time.monotonic()
