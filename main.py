@@ -29,7 +29,7 @@ import json
 from typing import List, Dict, Any, Tuple, Optional, Union
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from docxtpl import DocxTemplate
-from datetime import date
+from datetime import date, datetime
 
 # Carga de variables de entorno
 from dotenv import load_dotenv
@@ -545,6 +545,77 @@ def procesar_plan_de_manejo(
 # ==============================================================================
 # 4. FUNCIONES DE PROCESAMIENTO CON IA
 # ==============================================================================
+SIGLAS_MEDICAMENTOS: Dict[str, str] = {
+    "Abacavir": "ABC",
+    "Zidovudina": "AZT/2DV",
+    "Lamivudina": "3TC",
+    "Emtricitabina": "FTC",
+    "Tenofovir Alafenamida": "TAF",
+    "Tenofovir desoxoribosa": "TDF",
+    "Tenofovir fumarato": "TDF",
+    "Efavirenz": "EFV",
+    "Etravirina": "ETR",
+    "Rilpivirina": "RPV",
+    "Nevirapina": "NVP",
+    "Dolutegravir": "DTG",
+    "Raltegravir": "RAL",
+    "Elvitegravir": "EVG",
+    "Cobicistat": "COBI",
+    "Maraviroc": "MVC",
+    "Didanosina": "DDI",
+    "Bictegravir": "BIC",
+    "Fosamprenavir": "FPV/r",
+    "Ritonavir": "DRV/r",  # usado en combinación
+    "Darunavir": "DRV/r",
+    "Atazanavir": "ATV/r",
+    "Doravirina": "DOR/C",
+}
+
+
+def filtrar_formulas_recientes(plan_de_manejo: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """
+    Filtra en el dict plan_de_manejo solo las fórmulas médicas del día más reciente,
+    excluyendo 'PRESERVATIVO MASCULINO'. Modifica in-place y devuelve la lista filtrada.
+    """
+    formulas = plan_de_manejo.get("formulas_medicas", [])
+    if not formulas:
+        plan_de_manejo["formulas_medicas"] = []
+        return []
+
+    # Convertir fechas y obtener la más reciente
+    fechas = [datetime.strptime(f["fecha"], "%Y-%m-%d") for f in formulas]
+    fecha_max = max(fechas).strftime("%Y-%m-%d")
+
+    # Filtrar por fecha más reciente y excluir preservativos
+    ultimas = [
+        f
+        for f in formulas
+        if f.get("fecha") == fecha_max
+        and f.get("medicamento", "").upper() != "PRESERVATIVO MASCULINO"
+    ]
+
+    # Asignar in-place
+    plan_de_manejo["formulas_medicas"] = ultimas
+    return ultimas
+
+
+def mapear_siglas_med(formulas: List[Dict[str, Any]]) -> None:
+    """
+    Reemplaza el nombre del medicamento en cada dict de la lista por su sigla,
+    según el mapeo SIGLAS_MEDICAMENTOS. Modifica la lista in-place.
+    """
+    for f in formulas:
+        nombre = f.get("medicamento", "").strip()
+        # Buscar coincidencia exacta o por inclusión de palabras clave
+        sigla = SIGLAS_MEDICAMENTOS.get(nombre)
+        if not sigla:
+            # Intentar match por parte del nombre
+            for clave, val in SIGLAS_MEDICAMENTOS.items():
+                if clave.lower() in nombre.lower():
+                    sigla = val
+                    break
+        if sigla:
+            f["medicamento"] = sigla
 
 
 def preparar_datos_para_resumen(datos_paciente: Dict[str, Any]) -> Dict[str, Any]:
@@ -653,7 +724,7 @@ def preparar_datos_para_resumen(datos_paciente: Dict[str, Any]) -> Dict[str, Any
         datos_clave.update(
             {
                 "lista_medicamentos": [
-                    f["medicamento"]
+                    f"medicamento: {f["medicamento"]}, cantidad: {f["cantidad"]}, fecha inicio: {f['fecha']}"
                     for f in datos_paciente["plan_de_manejo"]["formulas_medicas"]
                 ],
                 "tipo_intervencion": mod_qf.get(
@@ -743,7 +814,7 @@ def invocar_bedrock(cliente, model_id: str, prompt: str) -> str:
     # Construye el payload en el formato que espera Mistral/Mixtral/Titan
     body = {
         "prompt": prompt,
-        "max_tokens": 4000,
+        "max_tokens": 5000,
         "temperature": 0.0,
         "top_p": 1.0,
         "top_k": 50,
@@ -797,9 +868,9 @@ def resumir_paciente_con_bedrock(
     **Tu tarea principal es:**
     Analiza la información textual densa en `quimico_seguimiento_farmacoterapeutico`, `medico_resumen_e_intervenciones` y `medico_enfermedad_actual`. Con base en ese análisis, extrae y deduce la información necesaria para rellenar los campos vacíos.
     ** campos a rellenar: **
-    - 'fecha_impresion' -> esta debe ser la fecha del ultimo encuentro con el quimico farmaceutico, o en caso que no tenga, la fecha de hoy, y debe ser en formato `DD/MM/YYYY`.
-    - 'fecha_dispensacion' -> la misma fecha que la de impresion.
-    - 'modalidad_dispensacion' -> la misma fecha que la de impresion.
+    - 'fecha_impresion'
+    - 'fecha_dispensacion'
+    - 'modalidad_dispensacion'
     - 'fecha_diagnostico'
     - 'estadio_clinico'
     - 'tipo_intervencion'
@@ -818,10 +889,10 @@ def resumir_paciente_con_bedrock(
     - 'cd4_paraclinico'
     - 'profilaxis_antibiotica'
     - 'metas_terapeuticas'
-    - 'medicamento_necesario' -> este debe decir Sí o No, si la TAR permite mejorar las condiciones de vida de los pacientes, así como disminuir las complicaciones durante la enfermedad y reducir la mortalidad o no.
-    - 'medicamento_efectivo' -> este debe decir Sí o No, si el paciente esta dentro de metas terapéuticaso no y si su CV es indetectable o no.
-    - 'medicamento_seguro' -> este debe decir Sí o No, si paciente refiere inconvenientes con la TAR o no. Si RAMs/PRMs/PRUMs o no.
-    - 'interacciones' -> este debe decir si el paciente refiere interacciones de mayor relevancia clinica o no y cuales en caso que sí.
+    - 'medicamento_necesario'
+    - 'medicamento_efectivo'
+    - 'medicamento_seguro'
+    - 'interacciones'
     - 'genotipo'
     - 'adherencia_test'
     - 'tolerancia_test'
@@ -831,9 +902,17 @@ def resumir_paciente_con_bedrock(
     1.  Tu respuesta debe ser un objeto JSON que contenga **ÚNICAMENTE** los campos que rellenaste. Exclusivamente los que he listado en ** campos a rellenar: ** y no debe faltar ninguno, todos deben estar debidamente rellenos.
     2.  **No incluyas texto explicativo, introducciones, conclusiones, ni la palabra "json" o ```markdown```.** Tu respuesta debe ser un JSON crudo, válido, que comience con `{{` y termine con `}}`.
     3.  Mantén un estilo de escritura clínico y profesional.
-    4.  si un campo se hace referencia a fechas, siempre busca la mas reciente, e intenta manejar este formato de fecha: `DD/MM/YYYY`.
-    5.  El orden de preferencia sobre lo que vas a leer y usar de los campso informativos es esta: 1)`quimico_seguimiento_farmacoterapeutico`, 2)"medico_resumen_e_intervenciones" y 3)`medico_enfermedad_actual` para rellenar los campos vacíos. Si no puedes inferir con base a esos campos, déjalo vacío (`""`) o como una lista vacía (`[]`).
-    6.  Si no encuentras información para un campo, puedes omitirlo de tu respuesta o asignarle el valor "No se encuentra información".
+    4.  Vas a responder algunos campos con las siguientes especificaciones de formateo:
+        - 'fecha_impresion' -> esta debe ser la fecha del ultimo encuentro con el quimico farmaceutico, o en caso que no tenga, la fecha de hoy, y debe ser en formato `DD/MM/YYYY`.
+        - 'fecha_dispensacion' -> la misma fecha que la de impresion.
+        - 'modalidad_dispensacion' -> la misma fecha que la de impresion.
+        - 'medicamento_necesario' -> este debe decir Sí o No, tambien debe decir si la TAR permite mejorar las condiciones de vida de los pacientes, así como disminuir las complicaciones durante la enfermedad y reducir la mortalidad o no.
+        - 'medicamento_efectivo' -> este debe decir Sí o No, tambien debe decir si el paciente esta dentro de metas terapéuticaso no y tambien debe decir si su CV es indetectable o no.
+        - 'medicamento_seguro' -> este debe decir Sí o No, tambien debe decir si paciente refiere inconvenientes con la TAR o no. tambien debe decir Si RAMs/PRMs/PRUMs o no.
+        - 'interacciones' -> este debe decir si el paciente refiere interacciones de mayor relevancia clinica o no y tambien debe decir cuales en caso que sí.
+    5.  si un campo se hace referencia a fechas, siempre busca la mas reciente, e intenta manejar este formato de fecha: `DD/MM/YYYY`.
+    6.  El orden de preferencia sobre lo que vas a leer y usar de los campso informativos es esta: 1)`quimico_seguimiento_farmacoterapeutico`, 2)"medico_resumen_e_intervenciones" y 3)`medico_enfermedad_actual` para rellenar los campos vacíos. Si no puedes inferir con base a esos campos, déjalo vacío (`""`) o como una lista vacía (`[]`).
+    7.  Si no encuentras información para un campo, puedes omitirlo de tu respuesta o asignarle el valor "No se encuentra información".
 
     **Objeto JSON de entrada para analizar:**
     {datos_json_input}
@@ -1071,6 +1150,12 @@ def main(cedulas_a_procesar: List[str]) -> None:
 
     for paciente_data in pacientes_extraidos:
         cedula_original = paciente_data["CEDULA"]
+
+        # 1) Obtén la lista original
+        formulas = filtrar_formulas_recientes(paciente_data["plan_de_manejo"])
+        mapear_siglas_med(formulas)
+        paciente_data["plan_de_manejo"]["formulas_medicas"] = formulas
+
         try:
             # La función ahora devuelve todos los campos necesarios (preparados + IA)
             cedula_res, todos_los_campos_actualizados = resumir_paciente_con_bedrock(
@@ -1134,7 +1219,7 @@ def main(cedulas_a_procesar: List[str]) -> None:
 if __name__ == "__main__":
     lista_de_cedulas = [
         "1107088958",
-        "32271898",
+        # "32271898",
         # "1026553146",
     ]
     main(cedulas_a_procesar=lista_de_cedulas)
