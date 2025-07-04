@@ -1,21 +1,26 @@
 # python
-/__pycache__/
-/venv/
-/.venv/
-/*.pyc
+backend/__pycache__/
+backend/venv/
+backend/.venv/
+backend/*.pyc
+
+# javascript
+frontend/node_modules/
+frontend/dist/
+frontend/build/
 
 # html
-/examples/*.html
-/examples/*.json
+backend/examples/*.html
+backend/examples/*.json
 
 # word
-/informes_pacientes/
+backend/informes_pacientes/
 
 # chromedriver
-/utils/
+backend/utils/
 
 # llm
-/models/
+backend/models/
 
 # local
 /.env

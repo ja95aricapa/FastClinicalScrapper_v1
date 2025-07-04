@@ -22,6 +22,7 @@ Arquitectura:
 # ==============================================================================
 # 1. IMPORTACIONES
 # ==============================================================================
+import sys
 import os
 import regex as re
 import time
@@ -1067,10 +1068,14 @@ def main(cedulas_a_procesar: List[str]) -> None:
     pacientes_extraidos = []
     try:
         login(driver=driver, url=FASTCLINICA_URL, user=USER, password=PASS)
+        total = len(cedulas_a_procesar)
         for i, cedula in enumerate(cedulas_a_procesar):
             print(
                 f"\n--- Procesando paciente {i+1}/{len(cedulas_a_procesar)} (Cédula: {cedula}) ---"
             )
+            porcentaje = int((i + 1) * 100 / total)
+            print(f"PROGRESS:{porcentaje}%")
+            sys.stdout.flush()
             try:
                 buscar_paciente(driver=driver, cedula=cedula)
                 soup_general = BeautifulSoup(driver.page_source, "html.parser")
@@ -1217,9 +1222,9 @@ def main(cedulas_a_procesar: List[str]) -> None:
 # 7. PUNTO DE ENTRADA DEL SCRIPT
 # ==============================================================================
 if __name__ == "__main__":
-    lista_de_cedulas = [
-        "1107088958",
-        # "32271898",
-        # "1026553146",
-    ]
-    main(cedulas_a_procesar=lista_de_cedulas)
+    if len(sys.argv) > 1:
+        cedulas = sys.argv[1].split(",")
+    else:
+        cedulas = ["1107088958"]  # fallback
+    main(cedulas_a_procesar=cedulas)
+# ==============================================================================
