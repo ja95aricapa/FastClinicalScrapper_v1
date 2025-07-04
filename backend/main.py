@@ -67,8 +67,6 @@ from botocore.client import Config
 # ==============================================================================
 # 2. CONFIGURACIÓN Y FUNCIONES DE INICIALIZACIÓN
 # ==============================================================================
-
-
 def get_env_vars() -> Tuple[
     Optional[str],
     Optional[str],
@@ -87,14 +85,28 @@ def get_env_vars() -> Tuple[
         el usuario, contraseña, etc. Si alguna no está definida, será None.
     """
     print("-> Cargando variables de entorno desde el archivo .env...")
-    load_dotenv()
+    # Si estamos dentro de un exe PyInstaller, las datas van a sys._MEIPASS
+    if getattr(sys, "frozen", False):
+        base_path = sys._MEIPASS
+    else:
+        base_path = os.path.dirname(__file__)
+
+    # Carga el .env desde allí
+    env_path = os.path.join(base_path, ".env")
+    load_dotenv(env_path)
+    if os.getenv("AWS_KEY_ID"):
+        os.environ["AWS_ACCESS_KEY_ID"] = os.getenv("AWS_KEY_ID")
+    if os.getenv("AWS_SECRET_KEY"):
+        os.environ["AWS_SECRET_ACCESS_KEY"] = os.getenv("AWS_SECRET_KEY")
+    if os.getenv("AWS_REGION"):
+        os.environ["AWS_DEFAULT_REGION"] = os.getenv("AWS_REGION")
     url = os.getenv("FASTCLINICA_URL")
     user = os.getenv("FASTCLINICA_USER")
     password = os.getenv("FASTCLINICA_PASS")
     model_id = os.getenv("LOCAL_MODEL_ID")
-    aws_key_id = os.getenv("AWS_KEY_ID")
-    aws_secret_key = os.getenv("AWS_SECRET_KEY")
-    aws_region = os.getenv("AWS_REGION")
+    aws_key_id = os.getenv("AWS_ACCESS_KEY_ID")
+    aws_secret_key = os.getenv("AWS_SECRET_ACCESS_KEY")
+    aws_region = os.getenv("AWS_DEFAULT_REGION")
     aws_bedrock_model_id = os.getenv("AWS_BEDROCK_MODEL_ID")
     return (
         url,
@@ -174,7 +186,7 @@ def init_driver() -> webdriver.Chrome:
         webdriver.Chrome: La instancia del driver configurada.
     """
     print("-> Inicializando el WebDriver de Selenium...")
-    service = ChromeService(executable_path="utils/chromedriver")
+    service = ChromeService(executable_path="backend/utils/chromedriver")
     opts = ChromeOptions()
     # Descomentar para ejecutar en modo "headless" (sin interfaz gráfica)
     # opts.add_argument("--headless=new")
@@ -1194,8 +1206,8 @@ def main(cedulas_a_procesar: List[str]) -> None:
     # --- FASE 3: ALMACENAMIENTO DE RESULTADOS ---
     print("\n\n--- FASE 3: ALMACENAMIENTO DE RESULTADOS ---")
     output_filename = "resultados_pacientes_completos.json"
-    os.makedirs("examples", exist_ok=True)
-    output_path = os.path.join("examples", output_filename)
+    os.makedirs("backend/examples", exist_ok=True)
+    output_path = os.path.join("backend/examples", output_filename)
     with open(output_path, "w", encoding="utf-8") as f:
         # Guardamos la lista final de diccionarios, que ahora están completos
         json.dump(pacientes_extraidos, f, ensure_ascii=False, indent=4)
@@ -1203,8 +1215,8 @@ def main(cedulas_a_procesar: List[str]) -> None:
 
     # --- FASE 4: GENERACIÓN DE INFORMES EN WORD ---
     print("\n\n--- FASE 4: GENERACIÓN DE INFORMES EN WORD ---")
-    template = "utils/plantilla_base_v1.docx"
-    salida_docs = "informes_pacientes"
+    template = "backend/utils/plantilla_base_v1.docx"
+    salida_docs = "backend/informes_pacientes"
     # La lista 'pacientes_extraidos' ya contiene todos los datos completos.
     # pacientes_extraidos = []
     generar_informes_word(pacientes_extraidos, template, salida_docs)

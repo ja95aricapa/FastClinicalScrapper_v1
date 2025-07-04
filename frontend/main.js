@@ -35,10 +35,15 @@ ipcMain.handle("save-zip", async () => {
 });
 
 ipcMain.on("run-scrape", (event, { cedulas }) => {
-	const py = spawn("python", [
-		path.join(__dirname, "..", "backend", "main.py"),
-		cedulas.join(","),
-	]);
+	const backendPath = path.join(
+		__dirname,
+		"..",
+		"backend",
+		"dist",
+		"backend.exe"
+	);
+	const py = spawn(backendPath, [cedulas.join(",")]);
+
 	let total = 0;
 	py.stdout.on("data", (data) => {
 		const msg = data.toString();

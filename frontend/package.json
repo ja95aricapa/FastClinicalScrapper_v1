@@ -5,7 +5,24 @@
     "scripts": {
         "start": "electron .",
         "react-start": "cd src && npm start",
-        "build": "cd src && npm run build"
+        "build": "cd src && npm run build",
+        "dist": "electron-builder"
+    },
+    "build": {
+        "appId": "com.fastclinical.desktop",
+        "files": [
+            "**/*",
+            "../backend/dist/backend.exe"
+        ],
+        "win": {
+            "target": [
+                "nsis",
+                "portable"
+            ]
+        },
+        "directories": {
+            "output": "release"
+        }
     },
     "dependencies": {
         "archiver": "^5.3.1",
