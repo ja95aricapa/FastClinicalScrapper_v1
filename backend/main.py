@@ -475,6 +475,106 @@ def capturar_y_procesar_historia(
     return datos_paciente
 
 
+def procesar_contacto(
+    driver: webdriver.Chrome, datos_paciente: Dict[str, Any]
+) -> Dict[str, Any]:
+    """
+    Navega a la pestaña 'Editar paciente' → 'Información de contacto'
+    y extrae el primer número de teléfono activo.
+    """
+    wait = WebDriverWait(driver, 20)
+    print("  -- Accediendo a la pestaña 'Información de Contacto'...")
+    # Asume que ya estamos en la página del paciente y existe el botón 'Editar'
+    try:
+        editar_btn = wait.until(
+            EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Editar')]"))
+        )
+        editar_btn.click()
+    except TimeoutException:
+        print(
+            "   -> No se encontró el botón 'Editar', puede que el modal ya esté abierto."
+        )
+
+    # Esperar a que cargue el componente de pestañas
+    wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "div[role='tablist']")))
+
+    # Localizar el botón por su atributo aria-controls (más robusto)
+    contacto_tab = wait.until(
+        EC.presence_of_element_located(
+            (By.CSS_SELECTOR, "button[aria-controls='-informacion-de-contacto-tab']")
+        )
+    )
+    # Hacer click por JavaScript para evitar posibles interceptaciones
+    driver.execute_script(
+        "arguments[0].scrollIntoView({block: 'center'});", contacto_tab
+    )
+    driver.execute_script("arguments[0].click();", contacto_tab)
+    time.sleep(1)  # Pequeña espera para que el contenido del tab se renderice
+
+    # ---- MODIFICACIÓN 1: Selector más específico para el contenedor de telecomunicaciones ----
+    contenedor_telecom = wait.until(
+        EC.presence_of_element_located(
+            (By.CSS_SELECTOR, "div[wire\\:key*='data.telecom']")
+        )
+    )
+
+    # Buscar items de 'Medios de contacto' dentro de su contenedor específico
+    repeater_items = contenedor_telecom.find_elements(
+        By.CSS_SELECTOR, "li.filament-forms-repeater-component-item"
+    )
+
+    print(f"  -- Encontrados {len(repeater_items)} medios de contacto.")
+
+    telefono = None
+    for item in repeater_items:
+        try:
+            tipo = item.find_element(
+                By.CSS_SELECTOR, "select[id$='.type']"
+            ).get_attribute("value")
+
+            # ---- MODIFICACIÓN 2: Cambiado 'input' por 'button' ----
+            activo_element = item.find_element(
+                By.CSS_SELECTOR, "button[id$='.current']"
+            )
+            activo = activo_element.get_attribute("aria-checked")
+
+            if tipo == "phone" and activo == "true":
+                telefono = (
+                    item.find_element(By.CSS_SELECTOR, "input[id$='.value']")
+                    .get_attribute("value")
+                    .strip()
+                )
+                print(f"   -> Teléfono activo encontrado: {telefono}")
+                break  # Salimos del bucle una vez encontramos el primer teléfono activo
+        except Exception as e:
+            print(
+                f"   -> Advertencia: No se pudo procesar un item de contacto. Error: {e}"
+            )
+            continue
+
+    datos_paciente["telefono"] = telefono or "No encontrado"
+
+    # Es una buena práctica regresar al estado inicial cerrando el modal/vista de edición
+    try:
+        cancelar_btn = driver.find_element(By.XPATH, "//a[contains(., 'Cancelar')]")
+        cancelar_btn.click()
+        wait.until(
+            EC.presence_of_element_located(
+                (
+                    By.XPATH,
+                    "//h1[contains(text(), 'Escritorio')] | //button[contains(., 'Editar')]",
+                )
+            )
+        )
+        print("  -- Modal de edición cerrado.")
+    except Exception:
+        print(
+            "   -> No se encontró el botón 'Cancelar', se continúa desde la página actual."
+        )
+
+    return datos_paciente
+
+
 def procesar_plan_de_manejo(
     driver: webdriver.Chrome, datos_paciente: Dict[str, Any]
 ) -> Dict[str, Any]:
@@ -627,8 +727,9 @@ def mapear_siglas_med(formulas: List[Dict[str, Any]]) -> None:
                 if clave.lower() in nombre.lower():
                     sigla = val
                     break
+        # Guardamos la sigla sin perder el nombre original
         if sigla:
-            f["medicamento"] = sigla
+            f["sigla"] = sigla
 
 
 def preparar_datos_para_resumen(datos_paciente: Dict[str, Any]) -> Dict[str, Any]:
@@ -647,6 +748,7 @@ def preparar_datos_para_resumen(datos_paciente: Dict[str, Any]) -> Dict[str, Any
         "nombre_paciente": datos_paciente.get("NOMBRE_PACIENTE", ""),
         "documento_id": datos_paciente.get("CEDULA", ""),
         "tipo_documento_id": "CC",
+        "telefono": datos_paciente.get("telefono", ""),
         "fecha_impresion": date.today().strftime(
             "%Y-%m-%d"
         ),  # ver como se saca del encuentro
@@ -737,7 +839,10 @@ def preparar_datos_para_resumen(datos_paciente: Dict[str, Any]) -> Dict[str, Any
         datos_clave.update(
             {
                 "lista_medicamentos": [
-                    f"medicamento: {f["medicamento"]}, cantidad: {f["cantidad"]}, fecha inicio: {f['fecha']}"
+                    # Ej: "Abacavir (ABC) — cantidad: 30, fecha inicio: 2025-07-01"
+                    f"{f['medicamento']}"
+                    + (f" ({f['sigla']})" if f.get("sigla") else "")
+                    + f" — cantidad: {f['cantidad']}, fecha inicio: {f['fecha']}"
                     for f in datos_paciente["plan_de_manejo"]["formulas_medicas"]
                 ],
                 "tipo_intervencion": mod_qf.get(
@@ -994,6 +1099,7 @@ def generar_informes_word(pacientes: list, template_path: str, output_dir: str):
             "paciente_nombre": p.get("nombre_paciente", ""),
             "tipo_documento_id": p.get("tipo_documento_id", "CC"),
             "documento_id": p.get("documento_id", ""),
+            "telefono": p.get("telefono", ""),
             "fecha_impresion": p.get("fecha_impresion", ""),
             "modalidad_intervencion": p.get("modalidad_intervencion", ""),
             "paciente_sexo": p.get("paciente_sexo", ""),
@@ -1114,6 +1220,9 @@ def main(cedulas_a_procesar: List[str]) -> None:
                 datos_paciente = procesar_plan_de_manejo(
                     driver=driver, datos_paciente=datos_paciente
                 )
+                datos_paciente = procesar_contacto(
+                    driver=driver, datos_paciente=datos_paciente
+                )
                 pacientes_extraidos.append(datos_paciente)
                 print(f"--- Finalizada la extracción para el paciente {cedula}. ---")
 
@@ -1215,7 +1324,10 @@ def main(cedulas_a_procesar: List[str]) -> None:
 
     # --- FASE 4: GENERACIÓN DE INFORMES EN WORD ---
     print("\n\n--- FASE 4: GENERACIÓN DE INFORMES EN WORD ---")
-    template = "backend/utils/plantilla_base_v1.docx"
+    # # presencial
+    # template = "backend/utils/plantilla_base_presencial_v1.docx"
+    # seguimiento
+    template = "backend/utils/plantilla_base_nota_seguimiento_v1.docx"
     salida_docs = "backend/informes_pacientes"
     # La lista 'pacientes_extraidos' ya contiene todos los datos completos.
     # pacientes_extraidos = []
@@ -1237,6 +1349,12 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         cedulas = sys.argv[1].split(",")
     else:
-        cedulas = ["1107088958"]  # fallback
+        # cedulas = ["1107088958"]  # fallback
+        cedulas = [
+            "1108334036",
+            "1111757001",
+            "1006050390",
+        ]
+
     main(cedulas_a_procesar=cedulas)
 # ==============================================================================

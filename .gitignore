@@ -6,11 +6,14 @@ backend/*.pyc
 backend/.env
 backend/backend.spec
 backend/build
+backend/dist
 
 # javascript
 frontend/node_modules/
 frontend/dist/
 frontend/build/
+frontend/bin/
+frontend/release/
 
 # html
 backend/examples/*.html

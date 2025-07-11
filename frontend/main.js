@@ -35,26 +35,25 @@ ipcMain.handle("save-zip", async () => {
 });
 
 ipcMain.on("run-scrape", (event, { cedulas }) => {
-	const backendPath = path.join(
+	// Path absoluto al exe empacado
+	const exePath = path.join(
 		__dirname,
-		"..",
-		"backend",
-		"dist",
-		"backend.exe"
+		"bin",
+		process.platform === "win32" ? "backend.exe" : "backend"
 	);
-	const py = spawn(backendPath, [cedulas.join(",")]);
+	// Llamamos al exe con la lista CSV como argumento
+	const child = spawn(exePath, [cedulas.join(",")], {
+		cwd: path.dirname(exePath),
+	});
 
-	let total = 0;
-	py.stdout.on("data", (data) => {
+	child.stdout.on("data", (data) => {
 		const msg = data.toString();
-		// parse progress info if main.py prints percentages as "PROGRESS:xx"
 		const match = msg.match(/PROGRESS:(\d+)%/);
 		if (match) {
-			const percent = parseInt(match[1], 10);
-			event.sender.send("progress-update", percent);
+			event.sender.send("progress-update", parseInt(match[1], 10));
 		}
 	});
-	py.on("close", (code) => {
+	child.on("close", (code) => {
 		event.sender.send("scrape-done", code === 0);
 	});
 });
