@@ -277,16 +277,28 @@ def buscar_paciente(driver: webdriver.Chrome, cedula: str) -> None:
     )
     search_input.clear()
     search_input.send_keys(cedula)
-    # Espera explícita para que la búsqueda asíncrona se complete
-    time.sleep(2)
-    resultado_selector = f"//div[contains(@class, 'filament-global-search-results-container')]//a[contains(., 'CC-{cedula}')]"
-    resultado_link = wait.until(
-        EC.element_to_be_clickable((By.XPATH, resultado_selector))
+    time.sleep(2)  # espera a resultados asíncronos
+
+    # Probamos ambos prefijos
+    for pref in ("CC", "PT"):
+        xpath = (
+            f"//div[contains(@class,'filament-global-search-results-container')]"
+            f"//a[contains(., '{pref}-{cedula}')]"
+        )
+        try:
+            resultado_link = wait.until(EC.element_to_be_clickable((By.XPATH, xpath)))
+            print(f"-> Encontrado resultado con prefijo {pref}-")
+            resultado_link.click()
+            wait.until(EC.url_contains("/patients/"))
+            print(f"-> Página del paciente {cedula} ({pref}) cargada correctamente.")
+            return
+        except TimeoutException:
+            # sigue al siguiente prefijo
+            pass
+
+    print(
+        f"-> ADVERTENCIA: No se encontró al paciente con cédula {cedula} ni en CC ni en PT."
     )
-    print("-> Resultado de búsqueda encontrado. Navegando a la página del paciente...")
-    resultado_link.click()
-    wait.until(EC.url_contains("/patients/"))
-    print(f"-> Página del paciente {cedula} cargada correctamente.")
 
 
 def extraer_secciones_modal(modal_html: str) -> Dict[str, Dict[str, str]]:
@@ -487,9 +499,17 @@ def procesar_contacto(
     # Asume que ya estamos en la página del paciente y existe el botón 'Editar'
     try:
         editar_btn = wait.until(
-            EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Editar')]"))
+            EC.presence_of_element_located(
+                (By.XPATH, "//button[contains(., 'Editar')]")
+            )
         )
-        editar_btn.click()
+        # 1) Scroll para centrarlo en pantalla y 2) clic forzado por JS
+        driver.execute_script(
+            "arguments[0].scrollIntoView({block:'center', inline:'center'});",
+            editar_btn,
+        )
+        time.sleep(0.5)  # opcional, para que acabe de renderizarse en su nueva posición
+        driver.execute_script("arguments[0].click();", editar_btn)
     except TimeoutException:
         print(
             "   -> No se encontró el botón 'Editar', puede que el modal ya esté abierto."
@@ -827,7 +847,26 @@ def preparar_datos_para_resumen(datos_paciente: Dict[str, Any]) -> Dict[str, Any
                 ).get("Acciones", ""),
             }
         )
-    # Extraer del encuentro farmacéutico más reciente
+    # --- extracción de lista de medicamentos: siempre ---
+    formulas = datos_paciente["plan_de_manejo"].get("formulas_medicas", [])
+    lista_meds: List[str] = []
+    if formulas:
+        # Como todas las fórmulas de esta dispensación comparten fecha,
+        # usamos la fecha del último elemento para mostrarla una sola vez.
+        fecha_disp = formulas[-1]["fecha"]
+        for idx, f in enumerate(formulas):
+            texto = f["medicamento"]
+            if f.get("sigla"):
+                texto += f" ({f['sigla']})"
+            if idx == len(formulas) - 1:
+                texto += f", fecha inicio: {fecha_disp}"
+            lista_meds.append(texto)
+    else:
+        lista_meds = ["No tiene medicamentos dispensados por ahora"]
+
+    datos_clave["lista_medicamentos"] = lista_meds
+
+    # --- extracción de datos del químico (solo si existe cita) ---
     if datos_paciente["historia_clinica"]["quimico_farmaceutico"]:
         ultimo_qf = sorted(
             datos_paciente["historia_clinica"]["quimico_farmaceutico"],
@@ -835,30 +874,23 @@ def preparar_datos_para_resumen(datos_paciente: Dict[str, Any]) -> Dict[str, Any
             reverse=True,
         )[0]
         mod_qf = ultimo_qf.get("datos_del_modal", {})
-        pf = mod_qf.get("Seguimiento Farmacoterapéutico", {})
+        seguimiento = mod_qf.get("Seguimiento Farmacoterapéutico", {})
+
         datos_clave.update(
             {
-                "lista_medicamentos": [
-                    # Ej: "Abacavir (ABC) — cantidad: 30, fecha inicio: 2025-07-01"
-                    f"{f['medicamento']}"
-                    + (f" ({f['sigla']})" if f.get("sigla") else "")
-                    + f" — cantidad: {f['cantidad']}, fecha inicio: {f['fecha']}"
-                    for f in datos_paciente["plan_de_manejo"]["formulas_medicas"]
-                ],
-                "tipo_intervencion": mod_qf.get(
-                    "Seguimiento Farmacoterapéutico", {}
-                ).get("Tipo de intervención", "PRESENCIAL"),
-                "modalidad_intervencion": mod_qf.get(
-                    "Seguimiento Farmacoterapéutico", {}
-                ).get(
+                "tipo_intervencion": seguimiento.get(
+                    "Tipo de intervención", "PRESENCIAL"
+                ),
+                "modalidad_intervencion": seguimiento.get(
                     "Modalidad de intervención",
                     date.today().strftime("%Y-%m-%d"),
                 ),
-                "quimico_seguimiento_farmacoterapeutico": mod_qf.get(
-                    "Seguimiento Farmacoterapéutico", {}
-                ).get("Descripción de la intervención", ""),
+                "quimico_seguimiento_farmacoterapéutico": seguimiento.get(
+                    "Descripción de la intervención", ""
+                ),
             }
         )
+
     return datos_clave
 
 
@@ -1198,13 +1230,16 @@ def main(cedulas_a_procesar: List[str]) -> None:
                 buscar_paciente(driver=driver, cedula=cedula)
                 soup_general = BeautifulSoup(driver.page_source, "html.parser")
                 h1_el = soup_general.find("h1", class_="filament-header-heading")
-                nombre_completo = (
-                    h1_el.get_text(strip=True)
-                    .replace(f"Editar CC-{cedula}", "")
-                    .strip()
-                    if h1_el
-                    else "No encontrado"
-                )
+                if h1_el:
+                    raw = h1_el.get_text(strip=True)
+                    # Quita ambos prefijos: CC y PT
+                    nombre_completo = (
+                        raw.replace(f"Editar CC-{cedula}", "")
+                        .replace(f"Editar PT-{cedula}", "")
+                        .strip()
+                    )
+                else:
+                    nombre_completo = "No encontrado"
                 datos_paciente = {
                     "CEDULA": cedula,
                     "NOMBRE_PACIENTE": nombre_completo,
@@ -1350,11 +1385,7 @@ if __name__ == "__main__":
         cedulas = sys.argv[1].split(",")
     else:
         # cedulas = ["1107088958"]  # fallback
-        cedulas = [
-            "1108334036",
-            "1111757001",
-            "1006050390",
-        ]
+        cedulas = ["1151957546", "5188932"]
 
     main(cedulas_a_procesar=cedulas)
 # ==============================================================================
