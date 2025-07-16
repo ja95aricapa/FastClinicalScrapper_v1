@@ -1062,7 +1062,7 @@ def resumir_paciente_con_bedrock(
         - 'interacciones' -> este debe decir si el paciente refiere interacciones de mayor relevancia clinica o no y tambien debe decir cuales en caso que sí.
     5.  si un campo se hace referencia a fechas, siempre busca la mas reciente, e intenta manejar este formato de fecha: `DD/MM/YYYY`.
     6.  El orden de preferencia sobre lo que vas a leer y usar de los campso informativos es esta: 1)`quimico_seguimiento_farmacoterapeutico`, 2)"medico_resumen_e_intervenciones" y 3)`medico_enfermedad_actual` para rellenar los campos vacíos. Si no puedes inferir con base a esos campos, déjalo vacío (`""`) o como una lista vacía (`[]`).
-    7.  Si no encuentras información para un campo, puedes omitirlo de tu respuesta o asignarle el valor "No se encuentra información".
+    7.  Si no encuentras información para un campo, entonces asginale el valor "No Aplica", lo importante es no dejarlo vacio.
 
     **Objeto JSON de entrada para analizar:**
     {datos_json_input}
