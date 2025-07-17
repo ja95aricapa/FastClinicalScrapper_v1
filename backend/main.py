@@ -1053,16 +1053,19 @@ def resumir_paciente_con_bedrock(
     2.  **No incluyas texto explicativo, introducciones, conclusiones, ni la palabra "json" o ```markdown```.** Tu respuesta debe ser un JSON crudo, válido, que comience con `{{` y termine con `}}`.
     3.  Mantén un estilo de escritura clínico y profesional.
     4.  Vas a responder algunos campos con las siguientes especificaciones de formateo:
-        - 'fecha_impresion' -> esta debe ser la fecha del ultimo encuentro con el quimico farmaceutico, o en caso que no tenga, la fecha de hoy, y debe ser en formato `DD/MM/YYYY`.
-        - 'fecha_dispensacion' -> la misma fecha que la de impresion.
-        - 'modalidad_dispensacion' -> la misma fecha que la de impresion.
+        - 'paciente_sexo' -> este debe ser "Masculino" o "Femenino", acorde al género del paciente que puedas inferir segun el nombre del paciente.
+        - 'fecha_dispensacion' -> esta debe ser la fecha del ultimo encuentro con el quimico farmaceutico, o en caso que no tenga, la fecha de hoy, y debe ser en formato `DD/MM/YYYY`.
+        - 'modalidad_dispensacion' -> la misma fecha que la de dispensacion.
         - 'medicamento_necesario' -> este debe decir Sí o No, tambien debe decir si la TAR permite mejorar las condiciones de vida de los pacientes, así como disminuir las complicaciones durante la enfermedad y reducir la mortalidad o no.
         - 'medicamento_efectivo' -> este debe decir Sí o No, tambien debe decir si el paciente esta dentro de metas terapéuticaso no y tambien debe decir si su CV es indetectable o no.
         - 'medicamento_seguro' -> este debe decir Sí o No, tambien debe decir si paciente refiere inconvenientes con la TAR o no. tambien debe decir Si RAMs/PRMs/PRUMs o no.
         - 'interacciones' -> este debe decir si el paciente refiere interacciones de mayor relevancia clinica o no y tambien debe decir cuales en caso que sí.
+        - 'concepto_qf' -> este debe decir que.. Acorde a la revisión de la trazabilidad del caso: si el paciente se considera adherente y tolerante al TAR acorde a los resultados de las últimas dispensaciones/Test SMAQ o no.
+        - 'adherencia_test' -> este debe decir si el paciente esta adherente o no, acorde a los resultados de las últimas dispensaciones/Test SMAQ. : Adherente (95-100%) o No adherente (<95%).
+        - 'tolerancia_test' -> este debe decir si el paciente esta tolerante o no, acorde a los resultados de las últimas dispensaciones/Test SMAQ. : Buena o Mala.
     5.  si un campo se hace referencia a fechas, siempre busca la mas reciente, e intenta manejar este formato de fecha: `DD/MM/YYYY`.
     6.  El orden de preferencia sobre lo que vas a leer y usar de los campso informativos es esta: 1)`quimico_seguimiento_farmacoterapeutico`, 2)"medico_resumen_e_intervenciones" y 3)`medico_enfermedad_actual` para rellenar los campos vacíos. Si no puedes inferir con base a esos campos, déjalo vacío (`""`) o como una lista vacía (`[]`).
-    7.  Si no encuentras información para un campo, entonces asginale el valor "No Aplica", lo importante es no dejarlo vacio.
+    7.  Si no encuentras información para un campo, entonces asginale el valor "No refiere" o "No Aplica", lo que tenga mas sentido segun la frase.
 
     **Objeto JSON de entrada para analizar:**
     {datos_json_input}
@@ -1328,6 +1331,11 @@ def main(cedulas_a_procesar: List[str]) -> None:
             # Actualiza el diccionario del paciente con el diccionario fusionado
             paciente_a_actualizar = pacientes_por_cedula[cedula_res]
             paciente_a_actualizar.update(todos_los_campos_actualizados)
+            # Fecha de impresión = hoy
+            paciente_a_actualizar["fecha_impresion"] = date.today().strftime("%Y-%m-%d")
+            # Genotipo por defecto
+            if not paciente_a_actualizar.get("genotipo"):
+                paciente_a_actualizar["genotipo"] = "N/A"
 
             print(f" -> Resumen para {cedula_original} completado y datos fusionados.")
 
