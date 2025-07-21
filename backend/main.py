@@ -353,9 +353,9 @@ def capturar_y_procesar_historia(
     driver: webdriver.Chrome, datos_paciente: Dict[str, Any]
 ) -> Dict[str, Any]:
     """
-    Navega a la pestaña 'Historia Clínica', extrae datos de los encuentros médicos
-    y de químico farmacéutico, y los añade al diccionario del paciente.
-    Ahora maneja de forma segura los encuentros que no tienen un botón 'Vista'.
+    Navega a la pestaña 'Historia Clínica', espera a que el contenido específico
+    cargue, extrae datos de los encuentros y los añade al diccionario del paciente.
+    Maneja de forma segura los encuentros que no tienen un botón 'Vista'.
 
     Args:
         driver (webdriver.Chrome): La instancia del WebDriver.
@@ -366,36 +366,42 @@ def capturar_y_procesar_historia(
     """
     wait = WebDriverWait(driver, 20)
     print("  -- Accediendo a la pestaña 'Historia Clínica'...")
-    historia_tab_selector = "//button[contains(., 'Historia Clínica')] | //a[contains(., 'Historia Clínica')]"
-    historia_tab = wait.until(
-        EC.element_to_be_clickable((By.XPATH, historia_tab_selector))
-    )
-    historia_tab.click()
 
-    wait.until(
-        EC.presence_of_element_located(
-            (By.CSS_SELECTOR, "div.filament-tables-table-container")
-        )
-    )
-    time.sleep(3)
-
-    filas_selector = (By.CSS_SELECTOR, "div[wire\\:sortable] > div[wire\\:key]")
     try:
-        filas_encuentros = wait.until(
-            EC.presence_of_all_elements_located(filas_selector)
+        historia_tab_selector = "//button[contains(., 'Historia Clínica')] | //a[contains(., 'Historia Clínica')]"
+        historia_tab = wait.until(
+            EC.element_to_be_clickable((By.XPATH, historia_tab_selector))
         )
+        # Usamos clic por JS para mayor robustez
+        driver.execute_script("arguments[0].click();", historia_tab)
+
+        # --- MODIFICACIÓN CLAVE ---
+        # 1. Eliminamos las esperas anteriores (una genérica y un time.sleep).
+        # 2. Añadimos una única espera explícita y específica.
+        #    Esperamos a que el contenedor de las filas de encuentros esté presente.
+        #    Este selector es el padre de las filas que el código ya busca,
+        #    lo que lo hace un objetivo perfecto para la espera.
+        filas_selector_css = "div[wire\\:sortable] > div[wire\\:key]"
+        wait.until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, filas_selector_css))
+        )
+
+        # Opcional: una brevísima pausa para asegurar que el renderizado finalice.
+        time.sleep(0.5)
+
+        filas_encuentros = driver.find_elements(By.CSS_SELECTOR, filas_selector_css)
         print(f"  -- Se encontraron {len(filas_encuentros)} encuentros en la historia.")
+
     except TimeoutException:
         print(
-            "  -- ADVERTENCIA: No se encontraron encuentros. Omitiendo sección de historia."
+            "  -- ADVERTENCIA: No se encontraron encuentros o la tabla no cargó. Omitiendo sección de historia."
         )
         return datos_paciente
 
     for i in range(len(filas_encuentros)):
         try:
-            fila_actual = wait.until(
-                EC.presence_of_all_elements_located(filas_selector)
-            )[i]
+            # Volvemos a encontrar los elementos para evitar 'StaleElementReferenceException'
+            fila_actual = driver.find_elements(By.CSS_SELECTOR, filas_selector_css)[i]
 
             columnas = fila_actual.find_elements(
                 By.CSS_SELECTOR, "div.filament-tables-text-column"
@@ -410,25 +416,17 @@ def capturar_y_procesar_historia(
             )
 
             if es_medico or es_quimico:
-                # ---- MODIFICACIÓN CLAVE ----
-                # Usamos find_elements (plural) para verificar la existencia del botón.
-                # Esto devuelve una lista. Si la lista está vacía, el botón no existe.
                 vista_buttons = fila_actual.find_elements(
                     By.XPATH, ".//button[contains(., 'Vista')]"
                 )
 
                 if not vista_buttons:
-                    # Si la lista está vacía, el botón 'Vista' no existe. Omitimos este encuentro.
                     print(
                         f"    -> ADVERTENCIA: El encuentro '{columnas[1].text.strip()}' no tiene botón 'Vista'. Omitiendo."
                     )
-                    continue  # Pasa al siguiente encuentro en el bucle 'for'
+                    continue
 
-                # Si llegamos aquí, el botón sí existe y podemos continuar.
-                vista_button = vista_buttons[
-                    0
-                ]  # Tomamos el primer (y único) botón de la lista
-
+                vista_button = vista_buttons[0]
                 tipo_profesional = "medico" if es_medico else "quimico_farmaceutico"
                 print(
                     f"    -> Procesando encuentro de '{tipo_profesional.replace('_', ' ')}'..."
@@ -475,6 +473,7 @@ def capturar_y_procesar_historia(
                 f"    -> ERROR al procesar una fila de encuentro: {type(e).__name__}. Continuando..."
             )
             try:
+                # Intento de cierre de emergencia si un modal quedó abierto
                 emergency_close = driver.find_element(
                     By.XPATH, "//button[span[contains(text(), 'Cerrar')]]"
                 )
@@ -496,101 +495,111 @@ def procesar_contacto(
     """
     wait = WebDriverWait(driver, 20)
     print("  -- Accediendo a la pestaña 'Información de Contacto'...")
-    # Asume que ya estamos en la página del paciente y existe el botón 'Editar'
+
     try:
-        editar_btn = wait.until(
-            EC.presence_of_element_located(
-                (By.XPATH, "//button[contains(., 'Editar')]")
+        # Asume que ya estamos en la página del paciente y existe el botón 'Editar'
+        try:
+            editar_btn = wait.until(
+                EC.element_to_be_clickable(
+                    (By.XPATH, "//button[contains(., 'Editar')]")
+                )
+            )
+            driver.execute_script(
+                "arguments[0].scrollIntoView({block:'center', inline:'center'});",
+                editar_btn,
+            )
+            time.sleep(0.5)
+            driver.execute_script("arguments[0].click();", editar_btn)
+        except TimeoutException:
+            print(
+                "   -> ADVERTENCIA: No se encontró el botón 'Editar', es posible que el modal ya esté abierto."
+            )
+
+        # Esperar a que cargue el componente de pestañas del modal
+        wait.until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, "div[role='tablist']"))
+        )
+
+        # Localizar la pestaña de contacto y hacer clic en ella
+        contacto_tab = wait.until(
+            EC.element_to_be_clickable(
+                (
+                    By.CSS_SELECTOR,
+                    "button[aria-controls='-informacion-de-contacto-tab']",
+                )
             )
         )
-        # 1) Scroll para centrarlo en pantalla y 2) clic forzado por JS
-        driver.execute_script(
-            "arguments[0].scrollIntoView({block:'center', inline:'center'});",
-            editar_btn,
+        driver.execute_script("arguments[0].click();", contacto_tab)
+
+        # --- MODIFICACIÓN CLAVE ---
+        # 1. Se eliminó el `time.sleep(1)`.
+        # 2. La siguiente línea `wait.until` ya se encarga de esperar de forma
+        #    explícita y segura a que el contenedor de los datos de contacto cargue.
+        contenedor_telecom = wait.until(
+            EC.presence_of_element_located(
+                (By.CSS_SELECTOR, "div[wire\\:key*='data.telecom']")
+            )
         )
-        time.sleep(0.5)  # opcional, para que acabe de renderizarse en su nueva posición
-        driver.execute_script("arguments[0].click();", editar_btn)
+
+        # Buscar items de 'Medios de contacto' dentro de su contenedor específico
+        repeater_items = contenedor_telecom.find_elements(
+            By.CSS_SELECTOR, "li.filament-forms-repeater-component-item"
+        )
+        print(f"  -- Encontrados {len(repeater_items)} medios de contacto.")
+
+        telefono = None
+        for item in repeater_items:
+            try:
+                tipo = item.find_element(
+                    By.CSS_SELECTOR, "select[id$='.type']"
+                ).get_attribute("value")
+
+                activo_element = item.find_element(
+                    By.CSS_SELECTOR, "button[id$='.current']"
+                )
+                activo = activo_element.get_attribute("aria-checked")
+
+                if tipo == "phone" and activo == "true":
+                    telefono = (
+                        item.find_element(By.CSS_SELECTOR, "input[id$='.value']")
+                        .get_attribute("value")
+                        .strip()
+                    )
+                    print(f"   -> Teléfono activo encontrado: {telefono}")
+                    break
+            except Exception as e:
+                print(
+                    f"   -> ADVERTENCIA: No se pudo procesar un item de contacto. Error: {e}"
+                )
+                continue
+
+        datos_paciente["telefono"] = telefono or "No encontrado"
+
     except TimeoutException:
         print(
-            "   -> No se encontró el botón 'Editar', puede que el modal ya esté abierto."
+            "  -- ADVERTENCIA: No se pudo cargar la sección de información de contacto. Omitiendo."
         )
+        datos_paciente["telefono"] = "Error al extraer"
 
-    # Esperar a que cargue el componente de pestañas
-    wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "div[role='tablist']")))
-
-    # Localizar el botón por su atributo aria-controls (más robusto)
-    contacto_tab = wait.until(
-        EC.presence_of_element_located(
-            (By.CSS_SELECTOR, "button[aria-controls='-informacion-de-contacto-tab']")
-        )
-    )
-    # Hacer click por JavaScript para evitar posibles interceptaciones
-    driver.execute_script(
-        "arguments[0].scrollIntoView({block: 'center'});", contacto_tab
-    )
-    driver.execute_script("arguments[0].click();", contacto_tab)
-    time.sleep(1)  # Pequeña espera para que el contenido del tab se renderice
-
-    # ---- MODIFICACIÓN 1: Selector más específico para el contenedor de telecomunicaciones ----
-    contenedor_telecom = wait.until(
-        EC.presence_of_element_located(
-            (By.CSS_SELECTOR, "div[wire\\:key*='data.telecom']")
-        )
-    )
-
-    # Buscar items de 'Medios de contacto' dentro de su contenedor específico
-    repeater_items = contenedor_telecom.find_elements(
-        By.CSS_SELECTOR, "li.filament-forms-repeater-component-item"
-    )
-
-    print(f"  -- Encontrados {len(repeater_items)} medios de contacto.")
-
-    telefono = None
-    for item in repeater_items:
+    finally:
+        # Siempre intentar cerrar el modal de edición para no afectar la siguiente extracción
         try:
-            tipo = item.find_element(
-                By.CSS_SELECTOR, "select[id$='.type']"
-            ).get_attribute("value")
-
-            # ---- MODIFICACIÓN 2: Cambiado 'input' por 'button' ----
-            activo_element = item.find_element(
-                By.CSS_SELECTOR, "button[id$='.current']"
-            )
-            activo = activo_element.get_attribute("aria-checked")
-
-            if tipo == "phone" and activo == "true":
-                telefono = (
-                    item.find_element(By.CSS_SELECTOR, "input[id$='.value']")
-                    .get_attribute("value")
-                    .strip()
+            # Busca el botón 'Cancelar' o un botón de cierre general del modal
+            cancelar_btn_selector = "//a[contains(., 'Cancelar')] | //button[contains(@aria-label, 'Cerrar')]"
+            cancelar_btn = driver.find_element(By.XPATH, cancelar_btn_selector)
+            if cancelar_btn.is_displayed():
+                cancelar_btn.click()
+                print("  -- Modal de edición cerrado.")
+                # Espera a que el modal desaparezca y el botón 'Editar' vuelva a ser visible
+                wait.until(
+                    EC.visibility_of_element_located(
+                        (By.XPATH, "//button[contains(., 'Editar')]")
+                    )
                 )
-                print(f"   -> Teléfono activo encontrado: {telefono}")
-                break  # Salimos del bucle una vez encontramos el primer teléfono activo
-        except Exception as e:
-            print(
-                f"   -> Advertencia: No se pudo procesar un item de contacto. Error: {e}"
-            )
-            continue
-
-    datos_paciente["telefono"] = telefono or "No encontrado"
-
-    # Es una buena práctica regresar al estado inicial cerrando el modal/vista de edición
-    try:
-        cancelar_btn = driver.find_element(By.XPATH, "//a[contains(., 'Cancelar')]")
-        cancelar_btn.click()
-        wait.until(
-            EC.presence_of_element_located(
-                (
-                    By.XPATH,
-                    "//h1[contains(text(), 'Escritorio')] | //button[contains(., 'Editar')]",
-                )
-            )
-        )
-        print("  -- Modal de edición cerrado.")
-    except Exception:
-        print(
-            "   -> No se encontró el botón 'Cancelar', se continúa desde la página actual."
-        )
+        except Exception:
+            # Si no se encuentra el botón, probablemente no había un modal abierto.
+            # No hacemos nada y continuamos.
+            pass
 
     return datos_paciente
 
@@ -599,9 +608,8 @@ def procesar_plan_de_manejo(
     driver: webdriver.Chrome, datos_paciente: Dict[str, Any]
 ) -> Dict[str, Any]:
     """
-    Navega a la pestaña 'Plan de Manejo', extrae órdenes y fórmulas, y los
-    añade al diccionario del paciente.
-    Ahora usa un clic de JavaScript para evitar errores de intercepción.
+    Navega a la pestaña 'Plan de Manejo', espera a que su contenido específico
+    cargue, extrae órdenes y fórmulas, y los añade al diccionario del paciente.
 
     Args:
         driver (webdriver.Chrome): La instancia del WebDriver.
@@ -612,66 +620,103 @@ def procesar_plan_de_manejo(
     """
     wait = WebDriverWait(driver, 20)
     print("  -- Accediendo a la pestaña 'Plan de Manejo'...")
-    plan_tab_selector = (
-        "//button[contains(., 'Plan de manejo')] | //a[contains(., 'Plan de manejo')]"
-    )
-    plan_tab = wait.until(EC.element_to_be_clickable((By.XPATH, plan_tab_selector)))
 
-    # ---- MODIFICACIÓN CLAVE ----
-    # En lugar de plan_tab.click(), usamos un clic de JavaScript.
-    # Esto evita el error "ElementClickInterceptedException" si otro elemento
-    # (como un encabezado fijo) está cubriendo el botón.
-    driver.execute_script("arguments[0].click();", plan_tab)
+    try:
+        plan_tab_selector = "//button[contains(., 'Plan de manejo')] | //a[contains(., 'Plan de manejo')]"
+        plan_tab = wait.until(EC.element_to_be_clickable((By.XPATH, plan_tab_selector)))
 
-    time.sleep(3)
-    soup_p = BeautifulSoup(driver.page_source, "html.parser")
-    contenedores = soup_p.find_all("div", class_="filament-tables-container")
-    for container in contenedores:
-        header_text = container.find(
-            "h2", class_="filament-tables-header-heading"
-        ).get_text(strip=True)
-        tabla = container.find("table", class_="filament-tables-table")
-        if not (tabla and tabla.find("tbody")):
-            continue
-        tbody = tabla.find("tbody")
-        if "Ordenes De Servicio" in header_text:
-            filas = tbody.find_all("tr", class_="filament-tables-row")
-            print(f"  -- Encontradas {len(filas)} órdenes de servicio.")
-            for fila in filas:
-                cols = fila.find_all("td", class_="filament-tables-cell")
-                if len(cols) >= 7:
-                    datos_paciente["plan_de_manejo"]["ordenes_de_servicio"].append(
-                        {
-                            "fecha": cols[0].get_text(strip=True),
-                            "codigo": cols[1].get_text(strip=True),
-                            "servicio": cols[2].get_text(strip=True),
-                            "estado": cols[3].get_text(strip=True),
-                            "prestador": cols[4].get_text(strip=True),
-                            "activo_desde": cols[5].get_text(strip=True),
-                            "activo_hasta": cols[6].get_text(strip=True),
-                        }
-                    )
-        elif "Fórmulas Médicas" in header_text:
-            filas = tbody.find_all("tr", class_="filament-tables-row")
-            print(f"  -- Encontradas {len(filas)} fórmulas médicas.")
-            for fila in filas:
-                cols = fila.find_all("td", class_="filament-tables-cell")
-                if len(cols) < 3:
-                    continue
-                tabla_meds = cols[1].find("table")
-                if not (tabla_meds and tabla_meds.find("tbody")):
-                    continue
-                for med_fila in tabla_meds.find("tbody").find_all("tr"):
-                    celdas_med = med_fila.find_all("td")
-                    if len(celdas_med) == 2:
-                        datos_paciente["plan_de_manejo"]["formulas_medicas"].append(
+        # Clic con JavaScript para evitar intercepciones
+        driver.execute_script("arguments[0].click();", plan_tab)
+
+        # --- MODIFICACIÓN CLAVE ---
+        # 1. Reemplazamos time.sleep(3) por una espera explícita.
+        #    Esperamos a que uno de los títulos de las tablas dentro de la pestaña
+        #    'Plan de manejo' sea visible. Esto confirma que el contenido ha cargado.
+        wait.until(
+            EC.visibility_of_element_located(
+                (
+                    By.XPATH,
+                    "//h2[contains(text(), 'Ordenes De Servicio') or contains(text(), 'Fórmulas Médicas')]",
+                )
+            )
+        )
+
+        # 2. Damos un respiro mínimo para que el DOM se estabilice por completo.
+        time.sleep(1)
+
+        # --- LÓGICA DE PARSEO MEJORADA ---
+        soup_p = BeautifulSoup(driver.page_source, "html.parser")
+
+        # Buscamos los contenedores de las tablas, que son muy específicos.
+        contenedores = soup_p.find_all("div", class_="filament-tables-container")
+
+        if not contenedores:
+            print(
+                "  -- ADVERTENCIA: No se encontraron contenedores de tablas en 'Plan de Manejo'."
+            )
+            return datos_paciente
+
+        for container in contenedores:
+            header_el = container.find("h2", class_="filament-tables-header-heading")
+            if not header_el:
+                continue
+
+            header_text = header_el.get_text(strip=True)
+            tabla = container.find("table", class_="filament-tables-table")
+
+            if not (tabla and tabla.find("tbody")):
+                continue
+
+            tbody = tabla.find("tbody")
+
+            if "Ordenes De Servicio" in header_text:
+                filas = tbody.find_all("tr", class_="filament-tables-row")
+                print(f"  -- Encontradas {len(filas)} órdenes de servicio.")
+                for fila in filas:
+                    cols = fila.find_all("td", class_="filament-tables-cell")
+                    if len(cols) >= 7:
+                        datos_paciente["plan_de_manejo"]["ordenes_de_servicio"].append(
                             {
                                 "fecha": cols[0].get_text(strip=True),
-                                "medicamento": celdas_med[0].get_text(strip=True),
-                                "cantidad": celdas_med[1].get_text(strip=True),
-                                "estado": cols[2].get_text(strip=True),
+                                "codigo": cols[1].get_text(strip=True),
+                                "servicio": cols[2].get_text(strip=True),
+                                "estado": cols[3].get_text(strip=True),
+                                "prestador": cols[4].get_text(strip=True),
+                                "activo_desde": cols[5].get_text(strip=True),
+                                "activo_hasta": cols[6].get_text(strip=True),
                             }
                         )
+            elif "Fórmulas Médicas" in header_text:
+                filas = tbody.find_all("tr", class_="filament-tables-row")
+                print(f"  -- Encontradas {len(filas)} fórmulas médicas.")
+                for fila in filas:
+                    cols = fila.find_all("td", class_="filament-tables-cell")
+                    if len(cols) < 3:
+                        continue
+
+                    tabla_meds = cols[1].find("table")
+                    if not (tabla_meds and tabla_meds.find("tbody")):
+                        continue
+
+                    for med_fila in tabla_meds.find("tbody").find_all("tr"):
+                        celdas_med = med_fila.find_all("td")
+                        if len(celdas_med) == 2:
+                            datos_paciente["plan_de_manejo"]["formulas_medicas"].append(
+                                {
+                                    "fecha": cols[0].get_text(strip=True),
+                                    "medicamento": celdas_med[0].get_text(strip=True),
+                                    "cantidad": celdas_med[1].get_text(strip=True),
+                                    "estado": cols[2].get_text(strip=True),
+                                }
+                            )
+
+    except TimeoutException:
+        print(
+            "  -- ADVERTENCIA: No se pudo encontrar o cargar la pestaña 'Plan de Manejo'. Omitiendo sección."
+        )
+    except Exception as e:
+        print(f"  -- ERROR inesperado en 'procesar_plan_de_manejo': {e}")
+
     return datos_paciente
 
 
@@ -780,6 +825,7 @@ def preparar_datos_para_resumen(datos_paciente: Dict[str, Any]) -> Dict[str, Any
         "antecedentes_quirurgicos": "",
         # Farmacéutico / QF
         "lista_medicamentos": [],
+        "combinacion_siglas": "",
         "tipo_intervencion": "",
         #### insumos para bedrock
         "medico_enfermedad_actual": "",
@@ -850,21 +896,26 @@ def preparar_datos_para_resumen(datos_paciente: Dict[str, Any]) -> Dict[str, Any
     # --- extracción de lista de medicamentos: siempre ---
     formulas = datos_paciente["plan_de_manejo"].get("formulas_medicas", [])
     lista_meds: List[str] = []
+    combinacion_siglas = ""
     if formulas:
-        # Como todas las fórmulas de esta dispensación comparten fecha,
-        # usamos la fecha del último elemento para mostrarla una sola vez.
-        fecha_disp = formulas[-1]["fecha"]
-        for idx, f in enumerate(formulas):
-            texto = f["medicamento"]
-            if f.get("sigla"):
-                texto += f" ({f['sigla']})"
-            if idx == len(formulas) - 1:
-                texto += f", fecha inicio: {fecha_disp}"
-            lista_meds.append(texto)
+        # Fecha de inicio común (la del primer elemento)
+        fecha_inicio = formulas[0]["fecha"]
+        # 1) líneas individuales sin siglas
+        for f in formulas:
+            lista_meds.append(f["medicamento"])
+        # 2) extraer y unir todas las siglas
+        siglas = [f.get("sigla") for f in formulas if f.get("sigla")]
+        # Asegurar orden consistente y único
+        siglas_unicas = []
+        for s in siglas:
+            if s not in siglas_unicas:
+                siglas_unicas.append(s)
+        combinacion_siglas = f"({' + '.join(siglas_unicas)}) Inicio: {fecha_inicio}"
     else:
-        lista_meds = ["No tiene medicamentos dispensados por ahora"]
+        lista_meds = ["No reporta"]
 
     datos_clave["lista_medicamentos"] = lista_meds
+    datos_clave["combinacion_siglas"] = combinacion_siglas
 
     # --- extracción de datos del químico (solo si existe cita) ---
     if datos_paciente["historia_clinica"]["quimico_farmaceutico"]:
@@ -1150,6 +1201,7 @@ def generar_informes_word(pacientes: list, template_path: str, output_dir: str):
             "habitos_toxicos": p.get("habitos_toxicos", ""),
             "hospitalizaciones_recientes": p.get("hospitalizaciones_recientes", ""),
             "lista_medicamentos": "\n".join(p.get("lista_medicamentos", [])),
+            "combinacion_siglas": p.get("combinacion_siglas", ""),
             "profilaxis_antibiotica": p.get("profilaxis_antibiotica", ""),
             "metas_terapeuticas": p.get("metas_terapeuticas", ""),
             "medicamento_necesario": p.get("medicamento_necesario", ""),
@@ -1393,7 +1445,8 @@ if __name__ == "__main__":
         cedulas = sys.argv[1].split(",")
     else:
         # cedulas = ["1107088958"]  # fallback
-        cedulas = ["1151957546", "5188932"]
+        # cedulas = ["1151957546", "5188932"]
+        cedulas = ["1151957546"]
 
     main(cedulas_a_procesar=cedulas)
 # ==============================================================================
