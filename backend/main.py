@@ -724,29 +724,30 @@ def procesar_plan_de_manejo(
 # 4. FUNCIONES DE PROCESAMIENTO CON IA
 # ==============================================================================
 SIGLAS_MEDICAMENTOS: Dict[str, str] = {
-    "Abacavir": "ABC",
-    "Zidovudina": "AZT/2DV",
-    "Lamivudina": "3TC",
-    "Emtricitabina": "FTC",
-    "Tenofovir Alafenamida": "TAF",
-    "Tenofovir desoxoribosa": "TDF",
-    "Tenofovir fumarato": "TDF",
-    "Efavirenz": "EFV",
-    "Etravirina": "ETR",
-    "Rilpivirina": "RPV",
-    "Nevirapina": "NVP",
-    "Dolutegravir": "DTG",
-    "Raltegravir": "RAL",
-    "Elvitegravir": "EVG",
-    "Cobicistat": "COBI",
-    "Maraviroc": "MVC",
-    "Didanosina": "DDI",
-    "Bictegravir": "BIC",
-    "Fosamprenavir": "FPV/r",
-    "Ritonavir": "DRV/r",  # usado en combinación
-    "Darunavir": "DRV/r",
-    "Atazanavir": "ATV/r",
-    "Doravirina": "DOR/C",
+    # Boosters / combinaciones explícitas
+    "atazanavir ritonavir": "ATV/r",
+    "darunavir ritonavir": "DRV/r",
+    # Monocomponentes
+    "abacavir": "ABC",
+    "lamivudina": "3TC",
+    "zidovudina": "AZT",
+    "emtricitabina": "FTC",
+    "tenofovir": "TDF",
+    "efavirenz": "EFV",
+    "etravirina": "ETR",
+    "rilpivirina": "RPV",
+    "nevirapina": "NVP",
+    "dolutegravir": "DTG",
+    "raltegravir": "RAL",
+    "elvitegravir": "EVG",
+    "cobicistat": "COBI",
+    "maraviroc": "MVC",
+    "didanosina": "DDI",
+    "bictegravir": "BIC",
+    "fosamprenavir": "FPV/r",
+    "doravirina": "DOR/C",
+    # (Opcional) Ritonavir aislado, en caso de necesitar fallback
+    "ritonavir": "r",
 }
 
 
@@ -779,22 +780,92 @@ def filtrar_formulas_recientes(plan_de_manejo: Dict[str, Any]) -> List[Dict[str,
 
 def mapear_siglas_med(formulas: List[Dict[str, Any]]) -> None:
     """
-    Reemplaza el nombre del medicamento en cada dict de la lista por su sigla,
-    según el mapeo SIGLAS_MEDICAMENTOS. Modifica la lista in-place.
+    Reemplaza el nombre del medicamento por su sigla correcta.
+    1) Si viene con '/', comprueba primero un combo explícito 'med1 med2' → SIG.
+    2) Si no, aplica SIG1/SIG2 directo.
+    3) Luego busca combos especiales en texto.
+    4) Finalmente mapea monocomponentes y une con ' + '.
     """
     for f in formulas:
-        nombre = f.get("medicamento", "").strip()
-        # Buscar coincidencia exacta o por inclusión de palabras clave
-        sigla = SIGLAS_MEDICAMENTOS.get(nombre)
-        if not sigla:
-            # Intentar match por parte del nombre
-            for clave, val in SIGLAS_MEDICAMENTOS.items():
-                if clave.lower() in nombre.lower():
-                    sigla = val
-                    break
-        # Guardamos la sigla sin perder el nombre original
-        if sigla:
-            f["sigla"] = sigla
+        raw = f.get("medicamento", "")
+        # Normalizar: eliminar dosis, unidades y texto irrelevante
+        norm = re.sub(
+            r"\d+|\bmg\b|\btablet(?:a|as)?\b|\bde liberacion\b|\bno modificada\b",
+            "",
+            raw,
+            flags=re.IGNORECASE,
+        )
+        norm = re.sub(r"[^\w\s/]", " ", norm)
+        norm = re.sub(r"\s+", " ", norm).strip().lower()
+
+        # 1) Slash: intento combo explícito
+        if "/" in norm:
+            partes = [p.strip() for p in norm.split("/") if p.strip()]
+            if len(partes) == 2:
+                combo = f"{partes[0]} {partes[1]}"
+                if combo in SIGLAS_MEDICAMENTOS:
+                    f["sigla"] = SIGLAS_MEDICAMENTOS[combo]
+                    continue
+                # si no hay combo, fallback a SIG1/SIG2
+                sig1 = SIGLAS_MEDICAMENTOS.get(partes[0])
+                sig2 = SIGLAS_MEDICAMENTOS.get(partes[1])
+                if sig1 and sig2:
+                    f["sigla"] = f"{sig1}/{sig2}"
+                    continue
+
+        # 2) Combo especiales en norm (sin slash)
+        for combo, sig in SIGLAS_MEDICAMENTOS.items():
+            if " " in combo and combo in norm:
+                f["sigla"] = sig
+                break
+        if "sigla" in f:
+            continue
+
+        # 3) Monocomponentes sueltos
+        encontrados = []
+        for clave, sig in SIGLAS_MEDICAMENTOS.items():
+            if " " not in clave and clave in norm:
+                encontrados.append(sig)
+
+        # Unir sin duplicados
+        seen = []
+        for s in encontrados:
+            if s not in seen:
+                seen.append(s)
+        if seen:
+            f["sigla"] = " + ".join(seen)
+        else:
+            f["sigla"] = "SIGLA_DESCONOCIDA"
+
+
+def get_regimen_start_date(historial: List[Dict[str, Any]]) -> str:
+    """
+    Dado el historial completo de fórmulas (cada una con 'fecha' y 'medicamento'),
+    devuelve la fecha (YYYY-MM-DD) en que comenzó el régimen terapéutico actual,
+    es decir, cuando cambió por última vez la combinación de medicamentos.
+    """
+    # 1) Ordenar todo por fecha ascendente
+    ordenado = sorted(historial, key=lambda x: x["fecha"])
+    # 2) Construir una lista de (fecha, conjunto_de_meds) cada vez que cambie
+    cambios = []
+    for entry in ordenado:
+        meds = [
+            m["medicamento"]
+            for m in ordenado
+            if m["fecha"] == entry["fecha"]
+            and m["medicamento"].upper() != "PRESERVATIVO MASCULINO"
+        ]
+        meds_set = tuple(sorted(set(meds)))
+        if not cambios or cambios[-1][1] != meds_set:
+            cambios.append((entry["fecha"], meds_set))
+    # 3) El último elemento de 'cambios' es el régimen vigente
+    ultima_fecha, ultimo_set = cambios[-1]
+    # 4) Buscar la primera aparición de ese mismo set
+    for fecha, conjuntos in cambios:
+        if conjuntos == ultimo_set:
+            return fecha
+    # Fallback (nunca pasa)
+    return ultima_fecha
 
 
 def preparar_datos_para_resumen(datos_paciente: Dict[str, Any]) -> Dict[str, Any]:
@@ -899,7 +970,9 @@ def preparar_datos_para_resumen(datos_paciente: Dict[str, Any]) -> Dict[str, Any
     combinacion_siglas = ""
     if formulas:
         # Fecha de inicio común (la del primer elemento)
-        fecha_inicio = formulas[0]["fecha"]
+        fecha_inicio = datos_paciente["plan_de_manejo"].get(
+            "regimen_inicio", formulas[0]["fecha"]
+        )
         # 1) líneas individuales sin siglas
         for f in formulas:
             lista_meds.append(f["medicamento"])
@@ -1367,8 +1440,17 @@ def main(cedulas_a_procesar: List[str]) -> None:
     for paciente_data in pacientes_extraidos:
         cedula_original = paciente_data["CEDULA"]
 
-        # 1) Obtén la lista original
+        # 1) Capturamos todo el historial para calcular la fecha de inicio real del régimen
+        all_formulas = paciente_data["plan_de_manejo"]["formulas_medicas"].copy()
+
+        # 2) Filtramos sólo las fórmulas del día más reciente
         formulas = filtrar_formulas_recientes(paciente_data["plan_de_manejo"])
+
+        # 3) Calculamos la fecha de inicio del régimen actual
+        inicio_regimen = get_regimen_start_date(all_formulas)
+        paciente_data["plan_de_manejo"]["regimen_inicio"] = inicio_regimen
+
+        # 4) Mapeamos siglas y actualizamos
         mapear_siglas_med(formulas)
         paciente_data["plan_de_manejo"]["formulas_medicas"] = formulas
 
@@ -1445,8 +1527,8 @@ if __name__ == "__main__":
         cedulas = sys.argv[1].split(",")
     else:
         # cedulas = ["1107088958"]  # fallback
-        # cedulas = ["1151957546", "5188932"]
-        cedulas = ["1151957546"]
+        cedulas = ["1151957546", "5188932", "1107082182", "66982584"]
+        # cedulas = ["1107082182"]
 
     main(cedulas_a_procesar=cedulas)
 # ==============================================================================
