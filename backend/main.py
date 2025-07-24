@@ -1192,7 +1192,7 @@ def resumir_paciente_con_bedrock(
     prompt = f"""Eres un Químico Farmacéutico experto en el análisis de datos clínicos. A continuación, te proporciono un objeto JSON con los datos de un paciente. Varios campos están vacíos (`''` o `[]`).
 
     **Tu tarea principal es:**
-    Analiza la información textual densa en `quimico_seguimiento_farmacoterapeutico`, `medico_resumen_e_intervenciones` y `medico_enfermedad_actual`. Con base en ese análisis, extrae y deduce la información necesaria para rellenar los campos vacíos.
+    Analiza la información textual densa en `quimico_seguimiento_farmacoterapéutico`, `medico_resumen_e_intervenciones` y `medico_enfermedad_actual`. Con base en ese análisis, extrae y deduce la información necesaria para rellenar los campos vacíos.
     ** campos a rellenar: **
     - 'fecha_impresion'
     - 'fecha_dispensacion'
@@ -1224,24 +1224,32 @@ def resumir_paciente_con_bedrock(
     - 'tolerancia_test'
     - 'concepto_qf'
     - 'sugerencia_horarios'
-    **Reglas estrictas para la salida:**
-    1.  Tu respuesta debe ser un objeto JSON que contenga **ÚNICAMENTE** los campos que rellenaste. Exclusivamente los que he listado en ** campos a rellenar: ** y no debe faltar ninguno, todos deben estar debidamente rellenos.
-    2.  **No incluyas texto explicativo, introducciones, conclusiones, ni la palabra "json" o ```markdown```.** Tu respuesta debe ser un JSON crudo, válido, que comience con `{{` y termine con `}}`.
-    3.  Mantén un estilo de escritura clínico y profesional.
-    4.  Vas a responder algunos campos con las siguientes especificaciones de formateo:
-        - 'paciente_sexo' -> este debe ser "Masculino" o "Femenino", acorde al género del paciente que puedas inferir segun el nombre del paciente.
-        - 'fecha_dispensacion' -> esta debe ser la fecha del ultimo encuentro con el quimico farmaceutico, o en caso que no tenga, la fecha de hoy, y debe ser en formato `DD/MM/YYYY`.
-        - 'modalidad_dispensacion' -> la misma fecha que la de dispensacion.
-        - 'medicamento_necesario' -> este debe decir Sí o No, tambien debe decir si la TAR permite mejorar las condiciones de vida de los pacientes, así como disminuir las complicaciones durante la enfermedad y reducir la mortalidad o no.
-        - 'medicamento_efectivo' -> este debe decir Sí o No, tambien debe decir si el paciente esta dentro de metas terapéuticaso no y tambien debe decir si su CV es indetectable o no.
-        - 'medicamento_seguro' -> este debe decir Sí o No, tambien debe decir si paciente refiere inconvenientes con la TAR o no. tambien debe decir Si RAMs/PRMs/PRUMs o no.
-        - 'interacciones' -> este debe decir si el paciente refiere interacciones de mayor relevancia clinica o no y tambien debe decir cuales en caso que sí.
-        - 'concepto_qf' -> este debe decir que.. Acorde a la revisión de la trazabilidad del caso: si el paciente se considera adherente y tolerante al TAR acorde a los resultados de las últimas dispensaciones/Test SMAQ o no.
-        - 'adherencia_test' -> este debe decir si el paciente esta adherente o no, acorde a los resultados de las últimas dispensaciones/Test SMAQ. : Adherente (95-100%) o No adherente (<95%).
-        - 'tolerancia_test' -> este debe decir si el paciente esta tolerante o no, acorde a los resultados de las últimas dispensaciones/Test SMAQ. : Buena o Mala.
-    5.  si un campo se hace referencia a fechas, siempre busca la mas reciente, e intenta manejar este formato de fecha: `DD/MM/YYYY`.
-    6.  El orden de preferencia sobre lo que vas a leer y usar de los campso informativos es esta: 1)`quimico_seguimiento_farmacoterapeutico`, 2)"medico_resumen_e_intervenciones" y 3)`medico_enfermedad_actual` para rellenar los campos vacíos. Si no puedes inferir con base a esos campos, déjalo vacío (`""`) o como una lista vacía (`[]`).
-    7.  Si no encuentras información para un campo, entonces asginale el valor "No refiere" o "No Aplica", lo que tenga mas sentido segun la frase.
+
+    **Formato especial para los siguientes campos:**
+    - **profilaxis_antibiotica**: Debe ser el texto exacto encontrado o, si no hay mención, `"No refiere"`.
+    - **metas_terapeuticas**: Debe indicar la Carga Viral (`"sobre"` o `"debajo"` de los límites de detección) y el cambio en el conteo de CD4 (`"aumento"` o `"reducción"`) en formato:
+    `Carga viral <sobre|debajo> de los límites de detección, <aumento|reducción> del conteo de CD4 para prevenir EO`
+    - **medicamento_necesario**: Debe responder `"Sí"` o `"No"`, seguido de si la TAR `"permite"` o `"aún no permite"` mejorar las condiciones de vida y reducir complicaciones, en formato:
+    `<Sí|No>, la TAR <permite|aún no permite> mejorar las condiciones de vida y reducir complicaciones`
+    - **medicamento_efectivo**: Debe responder `"Sí"` o `"No"`, seguido de si el paciente está `"dentro"` o `"fuera"` de metas terapéuticas y si la CV es `"indetectable"` o `"detectable"`, en formato:
+    `<Sí|No>, paciente <dentro|fuera> de metas terapéuticas, CV <indetectable|detectable>`
+    - **medicamento_seguro**: Debe responder `"Sí"` o `"No"`, seguido de si el paciente `"refiere"` o `"no refiere"` inconvenientes con la TAR, en formato:
+    `<Sí|No>, paciente <refiere|no refiere> inconvenientes con la TAR`
+    - **interacciones**: Debe ser el texto exacto de interacciones de relevancia clínica o, si no hay, `"Sin interacciones de mayor relevancia clínica"`.
+    - **adherencia_test** → Debe indicar: `adherente (95-100%)` o `no adherente (<95%)`  
+    - **tolerancia_test** → Debe indicar: `buena` o `por mejorar`
+    - **concepto_qf** → Debe redactarse como: `Acorde a la revisión de la trazabilidad del caso: El paciente se considera <adherente|no adherente> y <tolerante|no tolerante> al TAR acorde a los resultados de las últimas dispensaciones/Test SMAQ.`
+
+    Por defecto, si no encuentras información para cualquiera de estos campos, asume una interpretación positiva (es decir, elige `"Sí"` y los valores favorables) salvo para `profilaxis_antibiotica` e `interacciones`, donde usarás `"No refiere"` o `"Sin interacciones de mayor relevancia clínica"`.
+
+   **Reglas estrictas para la salida:**
+    1. Tu respuesta debe ser un objeto JSON que contenga **únicamente** los campos que rellenaste, tal como los listé arriba.
+    2. **No incluyas** texto explicativo, introducciones, conclusiones, ni la palabra “json” o ```markdown```. Solo el JSON crudo, válido, que comience con '{' y termine con '}'.
+    3. Mantén un estilo clínico y profesional.
+    4. Para fechas, usa siempre el formato `DD/MM/YYYY`.
+    5. El orden de preferencia para extraer información es: 1) `quimico_seguimiento_farmacoterapéutico`, 2) `medico_resumen_e_intervenciones`, 3) `medico_enfermedad_actual`.
+    6. Si no puedes inferir un campo, asígnale `"No refiere"` o `"No Aplica"`, según corresponda.
+
 
     **Objeto JSON de entrada para analizar:**
     {datos_json_input}
@@ -1587,6 +1595,14 @@ if __name__ == "__main__":
         cedulas = [
             "1144034551",
             "1112776684",
+            "16708208",
+            "1005944712",
+            "79586582",
+            "66866437",
+            "1107519030",
+            "16779130",
+            "31567170",
+            "94383347",
         ]
 
         # cedulas = [
