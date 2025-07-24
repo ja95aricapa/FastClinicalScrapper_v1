@@ -486,6 +486,50 @@ def capturar_y_procesar_historia(
     return datos_paciente
 
 
+def procesar_info_general(
+    driver: webdriver.Chrome, datos_paciente: Dict[str, Any]
+) -> Dict[str, Any]:
+    """
+    Navega a la pestaña 'Información General', extrae la edad mostrada
+    y la asigna a datos_paciente['paciente_edad'] (solo el valor numérico).
+    """
+    print("  -- Accediendo a la pestaña 'Información General'...")
+    try:
+        # 1. Clic en la pestaña Información General
+        tab = driver.find_element(
+            By.XPATH, "//button[.//span[text()='Información General']]"
+        )
+        driver.execute_script("arguments[0].click();", tab)
+
+        # 2. Pequeña pausa para dejar renderizar el panel
+        time.sleep(0.5)
+
+        # 3. Busca el placeholder de Edad con un XPath basado en el contenedor padre
+        placeholder = driver.find_element(
+            By.XPATH,
+            "//span[normalize-space(text())='Edad']"
+            "/ancestor::div[contains(@class,'space-y-2')]"
+            "/div[contains(@class,'filament-forms-placeholder-component')]",
+        )
+        edad_text = placeholder.text.strip()
+        print(f"  -> Edad extraída (texto completo): {edad_text}")
+
+        # 4. Extrae sólo el número de años
+        match = re.search(r"(\d+)\s*año", edad_text, re.IGNORECASE)
+        if match:
+            datos_paciente["paciente_edad"] = match.group(1)
+        else:
+            anyo = re.match(r"(\d+)", edad_text)
+            datos_paciente["paciente_edad"] = anyo.group(1) if anyo else ""
+        print(f"  -> Edad numérica guardada: {datos_paciente['paciente_edad']}")
+
+    except Exception as e:
+        print(f"  -> No fue posible extraer edad de Info. General: {e}")
+        datos_paciente["paciente_edad"] = ""
+
+    return datos_paciente
+
+
 def procesar_contacto(
     driver: webdriver.Chrome, datos_paciente: Dict[str, Any]
 ) -> Dict[str, Any]:
@@ -832,10 +876,11 @@ def mapear_siglas_med(formulas: List[Dict[str, Any]]) -> None:
         for s in encontrados:
             if s not in seen:
                 seen.append(s)
+
+        # --- AJUSTE CLAVE ---
+        # Si se encontraron siglas, se unen. Si no, no se hace nada.
         if seen:
             f["sigla"] = " + ".join(seen)
-        else:
-            f["sigla"] = "SIGLA_DESCONOCIDA"
 
 
 def get_regimen_start_date(historial: List[Dict[str, Any]]) -> str:
@@ -885,9 +930,8 @@ def preparar_datos_para_resumen(datos_paciente: Dict[str, Any]) -> Dict[str, Any
         "documento_id": datos_paciente.get("CEDULA", ""),
         "tipo_documento_id": "CC",
         "telefono": datos_paciente.get("telefono", ""),
-        "fecha_impresion": date.today().strftime(
-            "%Y-%m-%d"
-        ),  # ver como se saca del encuentro
+        "fecha_impresion": date.today().strftime("%Y-%m-%d"),
+        "paciente_edad": datos_paciente.get("paciente_edad", ""),
         # Médico
         "fecha_diagnostico": "",
         "estadio_clinico": "",
@@ -908,7 +952,6 @@ def preparar_datos_para_resumen(datos_paciente: Dict[str, Any]) -> Dict[str, Any
         "diagnostico_principal": "",
         "antecedentes_actuales": "",
         "paciente_sexo": "",
-        "paciente_edad": "",
         "otros_medicamentos": "",
         "alergias": "",
         "habitos_alimenticios": "",
@@ -939,14 +982,23 @@ def preparar_datos_para_resumen(datos_paciente: Dict[str, Any]) -> Dict[str, Any
             reverse=True,
         )[0]
         mod_med = ultimo_med.get("datos_del_modal", {})
+        # --- LÓGICA MEJORADA PARA EXTRAER ESTADIO CLÍNICO ---
+        # 1. Primer intento en la ubicación original.
+        estadio_clinico_valor = mod_med.get("Enfermedad Actual", {}).get(
+            "Estadio Clínico", ""
+        )
+
+        # 2. Si no se encontró, se intenta en la nueva ubicación proporcionada.
+        if not estadio_clinico_valor:
+            estadio_clinico_valor = mod_med.get("Seguimiento VIH/SIDA", {}).get(
+                "Estadío clínico actual", ""
+            )
         datos_clave.update(
             {
                 "fecha_diagnostico": mod_med.get("Enfermedad Actual", {}).get(
                     "Fecha de diagnóstico", ""
                 ),
-                "estadio_clinico": mod_med.get("Enfermedad Actual", {}).get(
-                    "Estadio Clínico", ""
-                ),
+                "estadio_clinico": estadio_clinico_valor,
                 "antecedentes_patologicos": mod_med.get("Antecedentes Médicos", {}).get(
                     "Patológicos", ""
                 ),
@@ -1377,6 +1429,9 @@ def main(cedulas_a_procesar: List[str]) -> None:
                         "formulas_medicas": [],
                     },
                 }
+                datos_paciente = procesar_info_general(
+                    driver=driver, datos_paciente=datos_paciente
+                )
                 datos_paciente = capturar_y_procesar_historia(
                     driver=driver, datos_paciente=datos_paciente
                 )
@@ -1527,8 +1582,23 @@ if __name__ == "__main__":
         cedulas = sys.argv[1].split(",")
     else:
         # cedulas = ["1107088958"]  # fallback
-        cedulas = ["1151957546", "5188932", "1107082182", "66982584"]
-        # cedulas = ["1107082182"]
+        # cedulas = ["1151957546", "5188932", "1107082182", "66982584"]
+        # cedulas = ["14478207", "1114731534", "1108638207", "1111788499", "5296700"]
+        cedulas = [
+            "1144034551",
+            "1112776684",
+        ]
+
+        # cedulas = [
+        #     "16708208",
+        #     "1005944712",
+        #     "79586582",
+        #     "66866437",
+        #     "1107519030",
+        #     "16779130",
+        #     "31567170",
+        #     "94383347",
+        # ]
 
     main(cedulas_a_procesar=cedulas)
 # ==============================================================================
